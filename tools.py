@@ -1,31 +1,25 @@
 from math import modf, atan2, sin, cos, pi
-from abc import ABCMeta, abstractmethod, abstractproperty
 from functools import partial
 
-from kivy.graphics import Color, Ellipse, Mesh, Quad, Rectangle
+from kivy.graphics import Color, Ellipse, Quad, Rectangle
 from kivy.graphics.vertex_instructions import Line
 from kivy.uix.bubble import Bubble
 from kivy.uix.bubble import BubbleButton
-from kivy.properties import ListProperty
-from kivy.core.window import Window
-from kivy.uix.widget import Widget
+
 import improc
 from globals import *
 
 
 class ToolBehavior():
-    # __metaclass__= ABCMeta
     instance_list = []
 
     @classmethod
     def scale(cls):
-        print 'ToolBehavior'
         for i in ToolBehavior.instance_list:
             i.on_scale()
 
     def __init__(self):
         ToolBehavior.instance_list.append(self)
-
 
     def on_scale(self):
         pass
@@ -51,7 +45,6 @@ class BarBubble(Bubble):
     def on_touch_down(self, touch):
         if super(BarBubble, self).on_touch_down(touch):
             return True
-
         if touch.is_mouse_scrolling:
             return False
         if not self.collide_point(touch.x, touch.y):
@@ -65,12 +58,10 @@ class BarBubble(Bubble):
             return True
         return True
 
-
     def on_touch_move(self, touch):
         if super(BarBubble, self).on_touch_move(touch):
             return True
         return self in touch.ud
-
 
     def show(self):
         self.layout.add_widget(self)
@@ -90,7 +81,6 @@ class ContextBubble(Bubble):
         else:
             raise NameError('function not callable')
 
-
     def __init__(self, **kwargs):
         Bubble.__init__(self, **kwargs)
         self.size_hint = (None, None)
@@ -102,7 +92,6 @@ class ContextBubble(Bubble):
         self.add_widget(BubbleButton(text='Paste', on_press=self.on_children_press))
         self.add_widget(BubbleButton(text='Delete', on_press=self.on_children_press))
 
-
     def on_touch_down(self, touch):
         if super(ContextBubble, self).on_touch_down(touch):
             return True
@@ -113,22 +102,16 @@ class ContextBubble(Bubble):
             return False
         if self in touch.ud:
             return False
-            #touch.grab(self)
         touch.ud[self] = True
-
         if self.collide_point(*touch.pos):
             self.pressed = touch.pos
             return True
         return True
 
-
     def on_touch_move(self, touch):
-        #if touch.grab_current is self:
-        #    return True
         if super(ContextBubble, self).on_touch_move(touch):
             return True
         return self in touch.ud
-
 
     def on_children_press(self, bbutton):
         if bbutton.text == 'Copy':
@@ -140,7 +123,6 @@ class ContextBubble(Bubble):
         elif bbutton.text == 'Delete':
             self._check_and_call('delete')
         self.parent.remove_widget(self)
-
 
     def _check_and_call(self, key):
         if ContextBubble.callbacks.has_key(key):
@@ -168,14 +150,12 @@ class VertexTool():
         cls.round_width = cls.app.config.getint('editor', 'tools_touch_point_size')
         cls.update_graphics()
 
-
     def __init__(self, app):
         VertexTool.app = app
         self.catch_point = [0, 0, 0, 0]
         self.point = [0, 0, 0, 0]
         self.poly = None
         self.round = [None, None]
-        # self.round_width = 40
         self.state = None
         self.rect = None
         self.canvas = app.aPaintLayout.canvas
@@ -238,7 +218,6 @@ class VertexTool():
                 self._add_graphics_rect()
 
     def _round_collide(self, pos):
-        # pos = self._translate_pos(pos)
         for ind in xrange(0, 2):
             if pos[0] > self.round[ind].pos[0]:
                 if pos[0] < self.round[ind].pos[0] + VertexTool.round_width:
@@ -248,7 +227,6 @@ class VertexTool():
         return None
 
     def _poly_collide(self, pos):
-        # x, y = self._translate_pos(pos)
         x, y = pos
         x1, y1 = self.point[0], self.point[1]
         x2, y2 = self.point[2], self.point[3]
@@ -397,7 +375,7 @@ class VertexTool():
                          self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1]]
 
             points = map(self._translate_point, self.point, fbo_coord)
-            # Line(points=points, width=1)
+
             self._create_body(points, width=1)
         fbo.release()
         fbo.draw()
@@ -411,7 +389,7 @@ class VertexTool():
 
     def reset_state(self, fbo):
         self.state = None
-        # self._render_to(render_fbo)
+
         self._remove_graphics_line(fbo)
         self._remove_graphics_rounds()
         self._remove_graphics_rect()
@@ -433,7 +411,6 @@ class LineTool(VertexTool):
 
 class RectTool(VertexTool):
     def _create_body(self, points, width):
-        # return Rectangle(pos=points[:2], size=(points[2] - points[0], points[3] - points[1]), width=width)
         return Line(rectangle=(points[0], points[1], points[2] - points[0], points[3] - points[1]))
 
     def _create_drag_body(self, points, width):
@@ -442,7 +419,6 @@ class RectTool(VertexTool):
 
 class EllipseTool(VertexTool):
     def _create_body(self, points, width):
-        # return Ellipse(pos=points[:2], size=(points[2] - points[0], points[3] - points[1]), width=width)
         return Line(ellipse=(points[0], points[1], points[2] - points[0], points[3] - points[1]))
 
     def _create_drag_body(self, points, width):
@@ -454,17 +430,14 @@ class SelectTool(VertexTool):
         VertexTool.__init__(self, app)
 
         self.layout = self.app.aPaintLayout
-
         self.context_menu = BarBubble(self.app.aPaintLayout)
         self.context_menu.pos = [Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0], Window.height - self.context_menu.size[1]]
         self.context_menu.width = Window.width - Window.width * (
-            TOOLBAR_LAYOUT_SIZE_HINT[0] + PALLETE_LAYOUT_SIZE_HINT[0])
-
+            TOOLBAR_LAYOUT_SIZE_HINT[0] + PALETTE_LAYOUT_SIZE_HINT[0])
         self.context_menu.add_button('copy', self.selection_copy)
         self.context_menu.add_button('cut', self.selection_cut)
         self.context_menu.add_button('paste', self.selection_paste)
         self.context_menu.add_button('delete', self.selection_del)
-
 
     def on_touch_down(self, touch, render_fbo, fbo):
         if self.state is None:
@@ -530,13 +503,11 @@ class SelectTool(VertexTool):
             return True
         return False
 
-
     def _set_point(self, index, touch):
         if index == 0:
             self.point[0], self.point[1] = self._translate_pos(touch.pos)
         elif index == 1:
             self.point[2], self.point[3] = self._translate_pos(touch.pos)
-
 
     def _reset_state(self, fbo):
         self.state = None
@@ -545,12 +516,10 @@ class SelectTool(VertexTool):
         self._remove_graphics_rect()
 
     def _create_body(self, points, width):
-        # return Line(rectangle=(points[0], points[1], points[2]-points[0], points[3]-points[1]), width=1, joint='miter')
         return Quad(points=(points[0], points[1], points[0], points[3], points[2], points[3], points[2], points[1]),
                     width=width)
 
     def _create_drag_body(self, points, width):
-        # return Line(points=points, width=width)
         pass
 
     def _add_graphics_line(self, fbo):
@@ -573,7 +542,6 @@ class SelectTool(VertexTool):
         fbo_coord = [self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1],
                      self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1]]
         point = map(self._translate_point, self.point, fbo_coord)
-
         if point[0] > point[2]:
             point[0] = point[2]
         if point[1] > point[3]:
@@ -589,7 +557,6 @@ class SelectTool(VertexTool):
     def selection_del(self):
         x, y = self.get_selection_pos()
         w, h = self.get_selection_size()
-        print x, y, w, h
         self.app.aPaint.fbo.bind()
         improc.texture_replace_color(tex=self.app.aPaint.fbo.texture, pos=(x, y), color=0, size=(w, h))
         self.app.aPaint.fbo.release()
@@ -608,12 +575,9 @@ class SelectTool(VertexTool):
 
 
 class BufferTool(ToolBehavior):
-    # pos = ListProperty([0, 0])
-
     def __init__(self, app, **args):
         ToolBehavior.__init__(self)
         self.rect = None
-        # Widget.__init__(self)
         self.app = app
         self.parent_layout = app.aPaint
         self.canvas = app.aPaint.canvas
@@ -629,10 +593,9 @@ class BufferTool(ToolBehavior):
         self.menu = BarBubble(self.app.aPaintLayout)
         self.menu.pos = [Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0], Window.height - self.menu.size[1]]
         self.menu.width = Window.width - Window.width * (
-            TOOLBAR_LAYOUT_SIZE_HINT[0] + PALLETE_LAYOUT_SIZE_HINT[0])
+            TOOLBAR_LAYOUT_SIZE_HINT[0] + PALETTE_LAYOUT_SIZE_HINT[0])
         self.menu.add_button('ok', self.disable)
         self.menu.add_button('cancel', self._cancel_paste)
-
 
     def enable(self, fbo):
         self.enabled = True
@@ -663,7 +626,6 @@ class BufferTool(ToolBehavior):
         fbo.release()
         fbo.draw()
 
-
     def get_from_texture(self, tetxure, pos, size):
         x, y = pos
         w, h = size
@@ -671,7 +633,6 @@ class BufferTool(ToolBehavior):
         self.texture.mag_filter = 'nearest'
         self.texture.min_filter = 'nearest'
         self.texture = improc.texture_flip(self.texture)
-
 
     def _cancel_paste(self):
         self._remove_graphics(self.fbo)
@@ -684,7 +645,6 @@ class BufferTool(ToolBehavior):
 
     def on_touch_up(self, touch):
         self.state = None
-        # self.fbo = None
 
     def on_touch_move(self, touch, fbo):
         scaled_pos = self.app.aPaint.scale_pos(touch.pos)
@@ -695,10 +655,6 @@ class BufferTool(ToolBehavior):
             self.rect.pos = self.pos
             self._add_graphics(fbo)
 
-    # def on_pos(self, instance, pos):
-    #     if self.rect:
-    #         self.rect.pos = pos
-
     def collide_point(self, pos):
         x, y = self.app.aPaint.scale_pos(pos)
         print self.pos
@@ -707,7 +663,5 @@ class BufferTool(ToolBehavior):
         return False
 
     def on_scale(self):
-        # if self.rect:
-        #     self.rect.pos = self.app.aPaint.scale_pair(self.pos)
         pass
 

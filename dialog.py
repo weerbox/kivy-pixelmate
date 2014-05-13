@@ -1,3 +1,6 @@
+import re
+from os.path import isfile, splitext
+
 from kivy.uix.floatlayout import FloatLayout
 from kivy.factory import Factory
 from kivy.properties import ObjectProperty
@@ -11,11 +14,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.image import Image
-import re
-import kivy
-from os.path import isfile, splitext
-from globals import *
 
+from globals import *
 import improc
 
 
@@ -23,9 +23,9 @@ class NumInput(TextInput):
     pat = re.compile('[^0-9]')
 
     def __init__(self, **kwargs):
-        TextInput.__init__(self, **kwargs)
-        self.input_type = 'number'
+        TextInput.__init__(self, text_size=26, **kwargs)
 
+        self.input_type = 'number'
 
     def insert_text(self, substring, from_undo=False):
         pat = self.pat
@@ -43,6 +43,7 @@ class OpenDialog(FloatLayout):
 
 class SaveDialog(FloatLayout):
     save = ObjectProperty(None)
+    get_texture = ObjectProperty(None)
     text_input = ObjectProperty(None)
     cancel = ObjectProperty(None)
     filters = ObjectProperty(None)
@@ -78,11 +79,8 @@ class NewImage():
         if w == 0 or h == 0:
             PopupMessage("Notification", "Width and height should be greater than zero")
             return
-
         self.callback((w, h))
-
         self._popup.dismiss()
-
 
     def _dismiss(self):
         Window.release_all_keyboards()
@@ -94,14 +92,11 @@ class OpenImage():
         self.filters = ["*.pixelmate", "*.bmp", "*.png", "*.jpg", "*.gif"]
         self.title = "Open Image: "
         self.callback = callback
-        self.app = kivy.app.App.get_running_app()
-
+        self.app = App.get_running_app()
         self.def_path = self.app.config.get('filechooser', 'open_path')
-
         self.content = OpenDialog(load=self._load, filters=self.filters, cancel=self._dismiss,
                                   get_texture=self._get_texture)
         self.content.chooser.path = os.path.abspath(self.def_path)
-
         self.content.chooser.bind(path=self._set_title)
         self._popup = Popup(title=self.title, content=self.content, size_hint=(1, 1))
         self._set_title(self.content.chooser, self.def_path)
@@ -115,7 +110,6 @@ class OpenImage():
 
     def _set_title(self, chooser, path):
         self._popup.title = self.title + os.path.abspath(path)
-        print path
 
     def _dismiss(self):
         self._popup.dismiss()
@@ -131,17 +125,13 @@ class OpenImage():
 
 class SaveBase():
     def __init__(self, callback):
-        # self.filters = []
-        # self.format = None
-        # self.title = ""
         self.callback = callback
         self.def_path = unicode(DEF_PATH)
         self.content = SaveDialog(save=self._save, cancel=self._dismiss, filters=self.filters, formats=self.formats,
-                                  set_format=self._set_format)
+                                  set_format=self._set_format, get_texture=self._get_texture)
         self.content.chooser.path = self.def_path
         self.content.spinner.bind(text=self._set_format)
         self.content.chooser.bind(path=self._set_title)
-
         self._popup = Popup(title=self.title, content=self.content, size_hint=(1, 1))
         self._set_title(self.content.chooser, self.def_path)
 
@@ -154,7 +144,6 @@ class SaveBase():
 
     def _set_title(self, chooser, path):
         self._popup.title = self.title + os.path.normpath(path)
-        print path
 
     def _dismiss(self):
         self._popup.dismiss()
@@ -168,11 +157,29 @@ class SaveBase():
             else:
                 self.open()
 
+        filename = os.path.split(filename)[1]
+        if len(filename) == 0:
+            PopupMessage(title='Information',
+                         text='Filename can\'t be is empty.', callback=save)
+            return
+        if set(filename).intersection('\\/:*?"<>|'):
+            PopupMessage(title='Information', text='Filename can\'t contain any of \\/:*?"<>| characters.',
+                         callback=save)
+            return
         if isfile(fullpath):
             ConfirmDialog(title='Confirmation', text='File already exist. Overwrite?', callback=save)
+            return
 
         self.callback(path, filename, self.format)
         self._popup.dismiss()
+
+    def _get_texture(self, filename):
+        ext = '*' + splitext(filename)[1]
+        if ext in self.filters:
+            if ext == '*.pixelmate':
+                return improc.merged_texture_from_zip(filename)
+            else:
+                return Image(source=filename).texture
 
 
 class SaveImage(SaveBase):
@@ -257,16 +264,15 @@ class ConfirmDialog():
     def __init__(self, title, text, callback):
         self.callback = callback
         content = AskPopupContent(text=text)
-        #content.bind(on_answer=self._on_answer)
+
         content.on_answer = self._on_answer
         self.popup = Popup(title=title,
                            content=content,
-                           size_hint=(0.4, 0.4),
+                           size_hint=(0.4, 0.3),
                            auto_dismiss=False)
         self.popup.open()
 
     def _on_answer(self, answer):
-        #print 'THE USER ANSWERED:', repr(answer)
         self.callback(answer)
         self.popup.dismiss()
 
@@ -275,16 +281,15 @@ class PopupMessage():
     def __init__(self, title, text, callback=None):
         self.callback = callback
         content = MessPopupContent(text=text)
-        #content.bind(on_answer = self._on_answer)
+
         content.on_answer = self._on_answer
         self.popup = Popup(title=title,
                            content=content,
-                           size_hint=(0.5, 0.35),
+                           size_hint=(0.75, 0.35),
                            auto_dismiss=False)
         self.popup.open()
 
     def _on_answer(self, answer):
-        #print 'THE USER ANSWERED:', repr(answer)
         if callable(self.callback):
             self.callback(answer)
         self.popup.dismiss()
@@ -301,11 +306,9 @@ class ColorPickerDialog:
         btn_layout = BoxLayout(orientation='horizontal', size_hint_y=0.15)
         btn_layout.add_widget(self.btn_colorPicker)
         btn_layout.add_widget(self.btn_cancel)
-
         layout.add_widget(SettingSpacer())
         layout.add_widget(self.colorPicker)
         layout.add_widget(SettingSpacer())
-        #layout.add_widget(self.btn_colorPicker)
         layout.add_widget(btn_layout)
         self.popup_picker = Popup(title="Color Picker", content=layout, size_hint=(0.6, 0.8))
         self.popup_picker.on_dismiss = self.on_dismiss
@@ -317,17 +320,16 @@ class ColorPickerDialog:
             self.colorPicker.color = color
         if callable(on_close):
             self.on_close_clbk = on_close
-        self.app.dialogState = self.app.state['dialog_color']
-        # print app.dialogState
+        self.app.dialog_state = self.app.state['dialog_color']
         self.popup_picker.open()
 
     def on_dismiss(self, *args):
-        self.app.dialogState = self.app.state['root']
+        self.app.dialog_state = self.app.state['root']
 
     def close(self, *args):
         self.on_close()
         self.popup_picker.dismiss()
-        self.app.dialogState = self.app.state['root']
+        self.app.dialog_state = self.app.state['root']
 
     def on_close(self, *args):
         if callable(self.on_close_clbk):

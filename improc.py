@@ -1,11 +1,11 @@
-from PIL import Image as PILImage
 import zipfile
-from os.path import split, splitext
+
 from kivy.graphics.fbo import Fbo
 from kivy.graphics.texture import Texture
 from kivy.graphics.opengl import glReadPixels, GL_RGBA, GL_RGB, GL_UNSIGNED_BYTE
 from kivy.graphics.opengl import glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
 from kivy.graphics import Color, Rectangle
+from PIL import Image as PILImage
 
 from dialog import PopupMessage
 
@@ -53,16 +53,8 @@ def texture_save(texture, filename, format=None):
         im = PILImage.fromstring('RGB', size, data)
     else:
         im = PILImage.fromstring('RGBA', size, data)
-
     im = im.transpose(PILImage.FLIP_TOP_BOTTOM)
     im.save(filename)
-
-    # z = ZipFile(splitext(filename)[0]+'.zip', 'w')
-
-    # z.write(filename, 'new_name.py')
-
-    # z.writestr(split(filename)[1], data)
-    # z.close()
 
 
 def texture_add_to_zip(texture, zip_object, entry_name):
@@ -92,7 +84,6 @@ def textures_list_from_zip(filename):
     if zipfile.is_zipfile(filename):
         zip_object = zipfile.ZipFile(filename, 'r')
         size = [int(x) for x in zip_object.comment.split(',')]
-        print size
         textures_list = []
         for info in zip_object.infolist():
             buffer = zip_object.read(info)
@@ -109,50 +100,34 @@ def textures_list_from_zip(filename):
 
 def merged_texture_from_zip(filename):
     textures_list = textures_list_from_zip(filename)
-
     fbo = Fbo(size=textures_list[0].size)
-
     fbo.bind()
-
     with fbo:
         for texture in textures_list:
             Rectangle(texture=texture)
-
     fbo.release()
     fbo.draw()
     return fbo.texture
 
 
 def widget_save_canvas(widget, filename, format):
-    # detach the widget from the parent
     parent = widget.parent
     if parent:
         parent.remove_widget(widget)
-
     size = (int(widget.size[0]), int(widget.size[1]))
-    # put the widget canvas on a Fbo
     texture = Texture.create(size=widget.size, colorfmt='rgba')
     fbo = Fbo(size=widget.size, texture=texture)
     fbo.add(widget.canvas)
-
     fbo.draw()
-
     fbo.bind()
     data = glReadPixels(0, 0, size[0], size[1], GL_RGBA, GL_UNSIGNED_BYTE)
     fbo.release()
-
-    # surf = pygame.image.fromstring(data, widget.size, 'RGBA', True)
-    # pygame.image.save(surf, filename)
-
     im = PILImage.fromstring('RGBA', size, data)
     im = im.transpose(PILImage.FLIP_TOP_BOTTOM)
     print filename
     im.save(filename, format)
-
-    # reattach to the parent
     if parent:
         parent.add_widget(widget)
-
     return True
 
 
@@ -191,41 +166,15 @@ def texture_replace_color(tex, pos, color, size=(1, 1)):
     sz = size[0] * size[1] * 4
     buf = [color for x in xrange(sz)]
     buf = ''.join(map(chr, buf))
-
     tex.blit_buffer(buf, pos=pos, size=size, colorfmt='rgba', bufferfmt='ubyte')
-
     return tex
-
-
-# def texture_draw_grid(tex, color, step):
-#     rstep = step*4
-#     sz = tex.size[0] * tex.size[1] * 4
-#     buf = [0 for x in xrange(0, sz)]
-#     buf2 = [color for x in xrange(0, sz, rstep)]
-#     t = 0
-#     for c in buf2:
-#         buf[t*rstep] = c
-#         buf[(t+1)*rstep] = c
-#         buf[(t+2)*rstep] = c
-#         t += 1
-#     buf = ''.join(map(chr, buf))
-#
-#     tex.blit_buffer(buf, pos=(0,0), size=tex.size, colorfmt='rgba', bufferfmt='ubyte')
-#
-#     return tex
-
 
 
 def new_color(texture, color, x, y, fbo):
     with fbo:
-        # Rectangle(size=texture.size)
-
         tex_region = texture.get_region(x, y, 4, 4)
         fbo.add(color)
-        # glBlendFunc(GL_ONE, GL_ZERO)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        # glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
         Rectangle(size=(4, 4), pos=(x, y), texture=tex_region)
 
 
@@ -233,7 +182,6 @@ def get_pixels(fbo, (x, y)):
     fbo.bind()
     data = glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
     fbo.release()
-    ##    c = [ord(a) / 255.0 for a in data]
     c = [ord(a) for a in data]
     return c
 
@@ -291,7 +239,6 @@ def fillimage(fbo, (x, y), color):
         cg = (color % 65536) / 256
         cb = color % 256
         color = (cr, cg, cb)
-    #     c = img.getpixel((x, y))[0]
     c = get_pixels(fbo, (x, y))
     if color == c:
         return 0
@@ -302,18 +249,12 @@ def fillimage(fbo, (x, y), color):
         for j in xrange(_fill_height):
             s += [0]
         flabel += [s]
-
     fbo.bind()
-
     flabel = _fill_check(fbo, (x, y, y + 1), c, flabel)
-
     fbo.add(Color(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0))
     while _fill_queue:
         x, yu, yd = _fill_queue[0]
         _fill_queue = _fill_queue[1:]
-
-
-        # fbo.add(Line(points=(x, yu, x, yd), width=1))
         fbo.add(Rectangle(pos=(x, yd), size=(1, yu - yd)))
         flabel[x][yu:yd] = (yd - yu) * [1]
         if x > 0: flabel = _fill_check(fbo, (x - 1, yu, yd), c, flabel)
@@ -321,4 +262,4 @@ def fillimage(fbo, (x, y), color):
     fbo.release()
     fbo.draw()
 
-##    if callback: callback()
+

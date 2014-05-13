@@ -1,14 +1,21 @@
+from functools import partial
+
 from kivy.animation import Animation
-from kivy.properties import ListProperty
-from kivy.properties import ObjectProperty
+from kivy.properties import ListProperty, ObjectProperty, BooleanProperty
 from kivy.lang import Builder
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
 from kivy.uix.bubble import Bubble
-from kivy.graphics import Color, Line
-import kivy
+from kivy.graphics import Color, Line, Rectangle
+from kivy.factory import Factory
+from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.relativelayout import RelativeLayout
+from kivy.uix.boxlayout import BoxLayout
+
 from hold import TapAndHoldWidget
-from main import *
+import dialog
+from globals import *
 
 
 def toolbar_on_touch():
@@ -34,10 +41,7 @@ class ToolButton(Button):
     pressed = ListProperty([0, 0])
 
     def on_touch_down(self, touch):
-        if self.collide_point(touch.x, touch.y):
-            toolbar_on_touch()
         if super(ToolButton, self).on_touch_down(touch):
-            # print '0 pressed'
             return True
         if touch.is_mouse_scrolling:
             return False
@@ -50,43 +54,27 @@ class ToolButton(Button):
         self.last_touch = touch
         self._do_press()
         self.dispatch('on_press')
-        # print 'pressed'
         return True
-
-        # if self.collide_point(*touch.pos):
-        #     self.pressed = touch.pos
-        #     return True
-        # return super(ToolButton, self).on_touch_down(touch)
 
     def on_touch_up(self, touch):
         if touch.grab_current is not self:
             return super(ToolButton, self).on_touch_up(touch)
-
         assert (self in touch.ud)
         touch.ungrab(self)
         self.last_touch = touch
         self._do_release()
         self.dispatch('on_release')
-
-        # print 'released'
-        # if self.collide_point(*touch.pos):
-        #     self.pressed = touch.pos
-        # return False
         return True
 
-
     def on_pressed(self, instance, pos):
-        print ('pressed at {pos}'.format(pos=pos))
+        pass
 
 
 class ToolToggleButton(ToggleButton):
     pressed = ListProperty([0, 0])
 
     def on_touch_down(self, touch):
-        if self.collide_point(touch.x, touch.y):
-            toolbar_on_touch()
         if super(ToggleButton, self).on_touch_down(touch):
-            # print '0 pressed'
             return True
         if touch.is_mouse_scrolling:
             return False
@@ -99,33 +87,21 @@ class ToolToggleButton(ToggleButton):
         self.last_touch = touch
         self._do_press()
         self.dispatch('on_press')
-        # print 'pressed'
         return True
-
-        # if self.collide_point(*touch.pos):
-        #     self.pressed = touch.pos
-        #     return True
-        # return super(ToolButton, self).on_touch_down(touch)
 
     def on_touch_up(self, touch):
         if touch.grab_current is not self:
             return super(ToggleButton, self).on_touch_up(touch)
-
         assert (self in touch.ud)
         touch.ungrab(self)
         self.last_touch = touch
         self._do_release()
         self.dispatch('on_release')
-
-        # print 'released'
-        # if self.collide_point(*touch.pos):
-        #     self.pressed = touch.pos
-        # return False
         return True
 
-
     def on_pressed(self, instance, pos):
-        print ('pressed at {pos}'.format(pos=pos))
+        # print ('pressed at {pos}'.format(pos=pos))
+        pass
 
 
 class MenuButton(ToolToggleButton):
@@ -133,14 +109,14 @@ class MenuButton(ToolToggleButton):
         super(MenuButton, self).__init__(**kwargs)
         self.sub_item = None
 
-
     def _do_press(self):
         self._release_group(self)
         self.state = 'down' if self.state == 'down' else 'down'
 
 
 class PaletteToggleButton(ToolToggleButton, TapAndHoldWidget):
-    _hold_length = 0.4
+    _hold_length = 0.3
+    _sensitivity = 12
 
     def __init__(self, **kwargs):
         super(PaletteToggleButton, self).__init__(**kwargs)
@@ -150,19 +126,14 @@ class PaletteToggleButton(ToolToggleButton, TapAndHoldWidget):
     def on_state(self, *args):
         if self.state == 'down':
             with self.canvas.after:
-                Color(0, 0.1, 1)
+                Color(54. / 256, 171. / 256, 214. / 256, 1)
                 Line(rectangle=(self.x + 2, self.y + 2, self.width - 4, self.height - 4), width=2, joint='miter')
         elif self.state == 'normal':
             self.canvas.after.clear()
 
-    # def on_hold(self, touch):
-    #     super(PaletteToggleButton, self).on_hold(touch)
-    #     print 'holded'
-
     def on_touch_up(self, touch):
         super(PaletteToggleButton, self).on_touch_up(touch)
-        if self.triggered:  # Event was triggered
-            # self.text = "A"
+        if self.triggered:
             pass
 
     def _do_press(self):
@@ -182,31 +153,47 @@ class ToolBubble(Bubble):
 
     def __init__(self, **kwargs):
         Bubble.__init__(self, **kwargs)
-        self.app = kivy.app.App.get_running_app()
+        self.app = App.get_running_app()
         self.pressed = None
         self.size_hint = (None, None)
         self.tool = TOOL_LINE
-        self.add_widget(Button(text='line', on_press=self.on_children_press))
-        self.add_widget(Button(text='rect', on_press=self.on_children_press))
-        self.add_widget(Button(text='ellipse', on_press=self.on_children_press))
+        self.frames = []
+        self.button_line = Button(background_normal=data_path('line.png'),
+                                  background_down=data_path('line_down.png'),
+                                  border=[0, 0, 0, 0], on_press=self.on_children_press)
+        self.button_rect = Button(background_normal=data_path('rect.png'),
+                                  background_down=data_path('rect_down.png'),
+                                  border=[0, 0, 0, 0], on_press=self.on_children_press)
+        self.button_ellipse = Button(background_normal=data_path('ellipse.png'),
+                                     background_down=data_path('ellipse_down.png'),
+                                     border=[0, 0, 0, 0], on_press=self.on_children_press)
+        self.add_widget(self.button_line)
+        self.add_widget(self.button_rect)
+        self.add_widget(self.button_ellipse)
+        self.content.bind(size=self.redraw_content_frame)
+
+    def redraw_content_frame(self, *args):
+        if self.frames:
+            [self.canvas.remove(frame) for frame in self.frames]
+        with self.canvas:
+            Color(0, 0, 0, 0.7)
+            self.frames = [Line(rectangle=(self.content.x, self.content.y, self.content.width / self.cols * t,
+                                           self.content.height)) for t in xrange(1, self.cols + 1)]
+        self.canvas.ask_update()
 
     def on_touch_down(self, touch):
         if not self.collide_point(touch.x, touch.y):
             if self in self.parent.children:
                 self.parent.remove_widget(self)
-                # print 'hide'
         if super(ToolBubble, self).on_touch_down(touch):
             return True
-
         if touch.is_mouse_scrolling:
             return False
         if not self.collide_point(touch.x, touch.y):
             return False
         if self in touch.ud:
             return False
-            #touch.grab(self)
         touch.ud[self] = True
-
         if self.collide_point(*touch.pos):
             self.pressed = touch.pos
             return True
@@ -218,22 +205,27 @@ class ToolBubble(Bubble):
         return self in touch.ud
 
     def on_children_press(self, bbutton):
-        if bbutton.text == 'rect':
-            # self._check_and_call('rect')
-            self.app.toolbar.btn_figs.text = bbutton.text
+        if bbutton is self.button_rect:
+            self.app.toolbar.btn_figs.background_normal = data_path('rect.png')
+            self.app.toolbar.btn_figs.background_down = data_path('rect_down.png')
             self.app.active_tool = TOOL_RECT
             self.tool = TOOL_RECT
-        elif bbutton.text == 'ellipse':
-            # self._check_and_call('circle')
-            self.app.toolbar.btn_figs.text = bbutton.text
+        elif bbutton is self.button_ellipse:
+            self.app.toolbar.btn_figs.background_normal = data_path('ellipse.png')
+            self.app.toolbar.btn_figs.background_down = data_path('ellipse_down.png')
             self.app.active_tool = TOOL_ELLIPSE
             self.tool = TOOL_ELLIPSE
-        elif bbutton.text == 'line':
-            # self._check_and_call('line')
-            self.app.toolbar.btn_figs.text = bbutton.text
+        elif bbutton is self.button_line:
+            self.app.toolbar.btn_figs.background_normal = data_path('line.png')
+            self.app.toolbar.btn_figs.background_down = data_path('line_down.png')
             self.app.active_tool = TOOL_LINE
             self.tool = TOOL_LINE
         self.parent.remove_widget(self)
+        if str(self.app.active_tool) in self.toolbar.btn_data_background_normal:
+            self.toolbar.btn_show_toolbar.background_normal = self.toolbar.btn_data_background_normal[
+                str(self.app.active_tool)]
+            self.toolbar.btn_show_toolbar.background_down = self.toolbar.btn_data_background_down[
+                str(self.app.active_tool)]
 
     def _check_and_call(self, key):
         if ToolBubble.callbacks.has_key(key):
@@ -245,129 +237,72 @@ class ToolBubble(Bubble):
             raise NameError(key + ' callback not defined')
 
 
-Builder.load_string('''
-<Toolbar>:
-    layout: box_layout.__self__
-    btn_pen: button_pen.__self__
-    tool_menu: tool_bubble.__self__
-    btn_figs: button_figs.__self__
-    BoxLayout:
-        id: box_layout
-        orientation: 'horizontal'
-        BoxLayout:
-            orientation: 'vertical'
-            # ToolButton:
-            #     size_hint_y: 0.5
-            #     text: '<'
-            #     tool: '<'
-            #     on_press: root.tools_on_button_press(self)
-            ToolToggleButton:
-                tool: 'erase'
-                group: 'tools'
-                text: 'Erase'
-                on_press: root.tools_on_button_press(self)
-            ToolToggleButton:
-                tool: 'fill'
-                group: 'tools'
-                text: 'Fill'
-                on_press: root.tools_on_button_press(self)
-            ToolToggleButton:
-                tool: 'select'
-                group: 'tools'
-                text: 'Select'
-                on_press: root.tools_on_button_press(self)
-            ToolButton:
-                tool: 'zoomx1'
-                text: 'Zoom x1'
-                on_press: root.tools_on_button_press(self)
-            ToolButton:
-                tool: 'empty'
-                text: 'Empty'
-                on_press: root.tools_on_button_press(self)
-            ToolButton:
-                tool: 'zoomin'
-                text: 'Zoom +'
-                on_press: root.tools_on_button_press(self)
-            ToolButton:
-                tool: 'undo'
-                text: 'Undo'
-                on_press: root.tools_on_button_press(self)
-        BoxLayout:
-            orientation: 'vertical'
-            # Button:
-            #     size_hint_y: 0.5
-            #     text: '^'
-            #     tool: '^'
-            #     on_press: root.tools_on_button_press(self)
-            ToolToggleButton:
-                id: button_pen
-                tool: 'pencil'
-                group: 'tools'
-                text: 'Pen'
-                on_press: root.tools_on_button_press(self)
-            MenuButton:
-                id: button_figs
-                tool: 'figures'
-                group: 'tools'
-                text: 'Line'
-                on_press: root.tools_on_button_press(self)
-
-            ToolToggleButton:
-                tool: 'picker'
-                group: 'tools'
-                text: 'Picker'
-                on_press: root.tools_on_button_press(self)
-            ToolToggleButton:
-                tool: 'move'
-                group: 'tools'
-                text: 'Move'
-                on_press: root.tools_on_button_press(self)
-            ToolToggleButton:
-                id: button_rect
-                group: 'tools'
-                tool: 'rect'
-                text: 'Rect'
-                on_press: root.tools_on_button_press(self)
-            ToolButton:
-                tool: 'zoomout'
-                text: 'Zoom -'
-                on_press: root.tools_on_button_press(self)
-            ToolButton:
-                tool: 'redo'
-                text: 'Redo'
-                on_press: root.tools_on_button_press(self)
-    ToolBubble:
-        id: tool_bubble
-        height: button_figs.height
-        width: self.height*3
-        y: button_figs.y
-        x: button_figs.right
-        arrow_pos: 'left_mid'
-        orientation: 'horizontal'
-''')
-
-
 class Toolbar(RelativeLayout):
-    # tools_on_button_press = ObjectProperty(None)
+    hidden = BooleanProperty(False)
 
     def __init__(self, app, **kwargs):
+        self.cover_layout = None
         RelativeLayout.__init__(self, **kwargs)
         self.app = app
         self.active_tool = None
         self.prev_tool = None
-        # self.layout = self.toolbar_create()
-        # self.layout = Factory.ToolbarLayout()
-
-        self.pos_in = (0, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height)
-        self.pos_out = (-Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0], TOOLBAR_LAYOUT_POS_HINT[1] * Window.height)
-        self.side_hiden = False
+        self.pos_in = (0, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
+        self.pos_out = (-Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0], TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
+        self.hidden = False
         self.animation_show = Animation(pos=self.pos_in, transition='in_quad', duration=0.3)
         self.animation_hide = Animation(pos=self.pos_out, transition='in_quad', duration=0.3)
         self.size_hint = TOOLBAR_LAYOUT_SIZE_HINT
-        self.pos = (TOOLBAR_LAYOUT_POS_HINT[0] * Window.width, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height)
-
+        self.pos = (TOOLBAR_LAYOUT_POS_HINT[0] * Window.width, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
         self.remove_widget(self.tool_menu)
+        self.btn_show_toolbar = ToggleButton(pos=(0, 0), background_normal=data_path('pencil_tool.png'),
+                                             background_down=data_path('pencil_down.png'), border=[0, 0, 0, 0],
+                                             size_hint=PALETTE_BTN_SHOW_SIZE_HINT, on_press=self.animate_switch)
+        self.btn_data_background_normal = {
+            str(TOOL_PENCIL): data_path('pencil_tool.png'),
+            str(TOOL_ERASE): data_path('eraser_tool.png'),
+            str(TOOL_RECT): data_path('rect_tool.png'),
+            str(TOOL_ELLIPSE): data_path('ellipse_tool.png'),
+            str(TOOL_LINE): data_path('line_tool.png'),
+            str(TOOL_FILL): data_path('buck_tool.png'),
+            str(TOOL_PICKER): data_path('picker_tool.png'),
+            str(TOOL_MOVE): data_path('move_tool.png'),
+            str(TOOL_SELECT): data_path('select_tool.png'),
+        }
+        self.btn_data_background_down = {
+            str(TOOL_PENCIL): data_path('pencil_down.png'),
+            str(TOOL_ERASE): data_path('eraser_down.png'),
+            str(TOOL_RECT): data_path('rect_down.png'),
+            str(TOOL_ELLIPSE): data_path('ellipse_down.png'),
+            str(TOOL_LINE): data_path('line_down.png'),
+            str(TOOL_FILL): data_path('buck_down.png'),
+            str(TOOL_PICKER): data_path('picker_down.png'),
+            str(TOOL_MOVE): data_path('move_down.png'),
+            str(TOOL_SELECT): data_path('select_down.png'),
+        }
+        self.btn_show_toolbar.state = 'down'
 
+    def on_size(self, *args):
+        if self.cover_layout:
+            with self.cover_layout.canvas.after:
+                Color(0, 0, 0, 0.7)
+                Line(rectangle=(0, 0, self.width / 2, self.height))
+                for t in xrange(1, 7):
+                    Line(rectangle=(0, 0, self.width, self.height * t / 6))
+            self.canvas.ask_update()
+
+    def on_touch_down(self, touch, *args):
+        if self.collide_point(touch.x, touch.y):
+            toolbar_on_touch()
+        if super(Toolbar, self).on_touch_down(touch):
+            return True
+        if touch.is_mouse_scrolling:
+            return False
+        if not self.collide_point(touch.x, touch.y):
+            if not self.btn_show_toolbar.collide_point(touch.x, touch.y):
+                return False
+        if self in touch.ud:
+            return False
+        return True
 
     def tools_on_button_press(self, button):
         if button.state == 'down':
@@ -397,12 +332,9 @@ class Toolbar(RelativeLayout):
                 self.app.aPaint.do_undo()
             if button.tool == 'redo':
                 self.app.aPaint.do_redo()
-            # if button.tool == '<':
-            #     self.animate_hide()
-            if button.tool == 'rect':
-                self.app.active_tool = TOOL_RECT
-
-
+            if str(self.app.active_tool) in self.btn_data_background_normal:
+                self.btn_show_toolbar.background_normal = self.btn_data_background_normal[str(self.app.active_tool)]
+                self.btn_show_toolbar.background_down = self.btn_data_background_down[str(self.app.active_tool)]
         else:
             button._do_press()
 
@@ -436,38 +368,54 @@ class Toolbar(RelativeLayout):
         else:
             self.remove_widget(self.tool_menu)
 
-
     def animate_hide(self, *args):
-        if not self.side_hiden:
+        if not self.hidden:
             self.animation_hide.start(self)
-            self.side_hiden = True
-            #LayerBubble.hide_all()
+            self.hidden = True
 
     def animate_show(self, *args):
-        if self.side_hiden:
+        if self.hidden:
             self.animation_show.start(self)
-            self.side_hiden = False
+            self.hidden = False
 
     def animate_switch(self, *args):
-        if not self.side_hiden:
+        if not self.hidden:
             self.animate_hide()
         else:
             self.animate_show()
 
+    def on_hidden(self, instance, value):
+        if value:
+            self.btn_show_toolbar.state = 'normal'
+        else:
+            self.btn_show_toolbar.state = 'down'
 
-class Pallete(RelativeLayout):
+
+Factory.register('Toolbar', cls=Toolbar)
+Builder.load_file("ui.kv")
+
+
+class Palette(RelativeLayout):
+    hidden = BooleanProperty(False)
+
     def __init__(self, app, **kwargs):
         RelativeLayout.__init__(self, **kwargs)
         self.app = app
+        self.hidden = False
 
-        layout_color = BoxLayout(orientation='horizontal',
-                                 size_hint=(PALLETE_LAYOUT_SIZE_HINT[0], PALLETE_LAYOUT_SIZE_HINT[1]),
-                                 pos=(Window.width - (PALLETE_LAYOUT_SIZE_HINT[0] * Window.width),
-                                      0))
+        self.layout_color = BoxLayout(orientation='horizontal',
+                                      size_hint=(1, 1),
+                                      pos=(0, 0))
 
-        layout1 = BoxLayout(orientation='vertical', size_hint=PALLETE_LAYOUT_CLMN_SIZE_HINT)
-        self.butList1 = [x for x in xrange(0, PALLETECOL_BTNCOUNT)]
-        self.butList2 = [x for x in xrange(0, PALLETECOL_BTNCOUNT)]
+        with self.layout_color.canvas:
+            Color(0.2, 0.2, 0.2, 1)
+            layout_rect = Rectangle(pos=self.pos, size=(Window.width * PALETTE_LAYOUT_SIZE_HINT[0],
+                                                        Window.height * PALETTE_LAYOUT_SIZE_HINT[1]))
+
+        layout1 = BoxLayout(orientation='vertical', size_hint=PALETTE_LAYOUT_CLMN_SIZE_HINT, spacing=1,
+                            padding=[1, 1, 0, 1])
+        self.butList1 = [x for x in xrange(0, PALETTE_BTN_COUNT)]
+        self.butList2 = [x for x in xrange(0, PALETTE_BTN_COUNT)]
         self.colorpicker_dialog = dialog.ColorPickerDialog(self.app, (Window.width, Window.height))
         for t in xrange(0, len(self.butList1)):
             self.butList1[t] = PaletteToggleButton()
@@ -476,7 +424,8 @@ class Pallete(RelativeLayout):
             self.butList1[t].background_normal = ""
             layout1.add_widget(self.butList1[t])
             self.butList1[t].background_color = (1, 0.05 * t, 0.05 * t, 1)
-        layout2 = BoxLayout(orientation='vertical', size_hint=PALLETE_LAYOUT_CLMN_SIZE_HINT)
+        layout2 = BoxLayout(orientation='vertical', size_hint=PALETTE_LAYOUT_CLMN_SIZE_HINT, spacing=1,
+                            padding=[1, 1, 0, 1])
         for t in xrange(0, len(self.butList2)):
             self.butList2[t] = PaletteToggleButton()
             self.butList2[t].bind(on_press=partial(self.but_select, self.butList2[t]))
@@ -507,31 +456,80 @@ class Pallete(RelativeLayout):
         self.butList2[8].background_color = (63 / 255., 72 / 255., 204 / 255., 1)
         self.butList2[9].background_color = (163 / 255., 73 / 255., 164 / 255., 1)
 
-        layout_color.add_widget(layout1)
-        layout_color.add_widget(layout2)
-        self.add_widget(layout_color)
+        self.pos_in = (PALETTE_LAYOUT_POS_HINT[0] * Window.width, PALETTE_LAYOUT_POS_HINT[1] * Window.height)
+        self.pos_out = (Window.width + 1, PALETTE_LAYOUT_POS_HINT[1] * Window.height)
+        self.animation_show = Animation(pos=self.pos_in, transition='in_quad', duration=0.3)
+        self.animation_hide = Animation(pos=self.pos_out, transition='in_quad', duration=0.3)
+        self.size_hint = PALETTE_LAYOUT_SIZE_HINT
+        self.pos = self.pos_in
+        self.layout_color.add_widget(layout1)
+        self.layout_color.add_widget(layout2)
+        self.add_widget(self.layout_color)
+        self.btn_show_palette = ToggleButton(pos=(Window.width - PALETTE_BTN_SHOW_SIZE_HINT[0] * Window.width, 0),
+                                             background_normal=data_path('palette.png'),
+                                             background_down=data_path('palette_down.png'), border=[0, 0, 0, 0],
+                                             size_hint=PALETTE_BTN_SHOW_SIZE_HINT, on_press=self.animate_switch)
+
+        self.btn_show_palette.state = 'down'
+
+
+    def on_touch_down(self, touch, *args):
+        if self.collide_point(touch.x, touch.y):
+            toolbar_on_touch()
+        if super(Palette, self).on_touch_down(touch):
+            return True
+        if touch.is_mouse_scrolling:
+            return False
+        if not self.collide_point(touch.x, touch.y):
+            if not self.btn_show_palette.collide_point(touch.x, touch.y):
+                return False
+        if self in touch.ud:
+            return False
+        return True
 
     def open_colorpicker(self, button, *args):
         self.colorpicker_dialog.open(color=button.background_color,
                                      on_close=partial(self.set_but_color, button))
-
 
     def set_but_color(self, button, *args):
         c = self.colorpicker_dialog.colorPicker.color
         button.background_color = c
         self.app.aColor = Color(c[0], c[1], c[2], c[3])
 
-
     def but_select(self, button, *args):
         c = button.background_color
         self.app.aColor = Color(c[0], c[1], c[2], c[3])
 
+    def animate_hide(self, *args):
+        if not self.hidden:
+            self.animation_hide.start(self)
+            self.hidden = True
+
+    def animate_show(self, *args):
+        if self.hidden:
+            self.animation_show.start(self)
+            self.hidden = False
+
+    def animate_switch(self, *args):
+        if not self.hidden:
+            self.animate_hide()
+        else:
+            self.animate_show()
+
+    def on_hidden(self, instance, value):
+        if value:
+            self.btn_show_palette.state = 'normal'
+        else:
+            self.btn_show_palette.state = 'down'
+
 
 Builder.load_string('''
+
 <MenuPopup>:
+
     id: MPopup
     title: "Menu"
-    size_hint: .3, .7
+    size_hint: .34, .84
 
     BoxLayout:
         size: root.size
@@ -545,22 +543,28 @@ Builder.load_string('''
             padding: [0, 0]
             BubbleButton:
                 text: "New project"
+                font_size: globals.MAINMENU_BUTTON_TEXT_SIZE
                 on_release: root.new_clbk()
             BubbleButton:
-                text: "Open project\image"
+                text: "Open project \ Image"
+                font_size: globals.MAINMENU_BUTTON_TEXT_SIZE
                 on_release: root.open_clbk()
             BubbleButton:
                 text: "Save project"
+                font_size: globals.MAINMENU_BUTTON_TEXT_SIZE
                 on_release: root.save_project_clbk()
             BubbleButton:
                 text: "Export to image"
+                font_size: globals.MAINMENU_BUTTON_TEXT_SIZE
                 on_release: root.save_image_clbk()
             BubbleButton:
-                text: "Config"
+                text: "Settings"
+                font_size: globals.MAINMENU_BUTTON_TEXT_SIZE
                 on_release: root.options_clbk()
             SettingSpacer:
             BubbleButton:
                 text: "Exit app"
+                font_size: globals.MAINMENU_BUTTON_TEXT_SIZE
                 on_release: root.exit_clbk()
 ''')
 
@@ -603,6 +607,6 @@ class MenuPopup(Popup):
         Popup.__init__(self)
 
 
-# Factory.register('MenuPopup', cls=MenuPopup)
+
 
 

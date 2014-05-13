@@ -1,4 +1,5 @@
 from copy import copy
+
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from kivy.vector import Vector
@@ -54,58 +55,3 @@ class TapAndHoldWidget(Widget):
     def on_hold(self, touch):
         ''' To be implemented by concrete class '''
 
-        # from kivy.lang import Builder
-        # from kivy.app import App
-        # from kivy.uix.label import Label
-        # from kivy.uix.boxlayout import BoxLayout
-        # from kivy.properties import ObjectProperty
-        # # from tnhWidget import TapAndHoldWidget
-        #
-        # Builder.load_string('''
-        # <TnHDemo>:
-        #     tnh: tnh
-        #     wid: wid
-        #     orientation: 'vertical'              # Vertically grouped boxes
-        #     Label:
-        #         id: wid
-        #         canvas.before:
-        #             Color:
-        #                 rgba: .95,.95,.5,1
-        #             Rectangle:
-        #                 pos: self.pos
-        #                 size: self.size
-        #         color: 0.2,0.2,0.8,1.0           # Text label colour
-        #         text: 'Ordinary Label'
-        #
-        #     ConcreteTnH:
-        #         id: tnh
-        #         canvas.before:
-        #             Color:
-        #                 rgba: .5,.95,.5,1
-        #             Rectangle:
-        #                 pos: self.pos
-        #                 size: self.size
-        #         color: 0.2,0.2,0.2,1.0           # Text Colour
-        #         text: self.text or 'tap and hold in this area'
-        # ''')
-        #
-        #
-        # class ConcreteTnH(Label, TapAndHoldWidget):
-        #     ''' Our example Label+TapAndHoldWidget mixIn '''
-        #     def on_hold(self, point):
-        #         self.text = "Got tap and hold at x:%s,y:%s" % (point.x, point.y)
-        #     def on_touch_up(self, touch):
-        #         super(ConcreteTnH, self).on_touch_up(touch)
-        #         if self.triggered:  # Event was triggered
-        #             self.text = "Tap and hold again..."
-        #
-        # class TnHDemo(BoxLayout):
-        #     tnh = ObjectProperty()
-        #     wid = ObjectProperty()
-        #
-        # class TnHApp(App):
-        #     def build(self):
-        #         return TnHDemo()
-        #
-        # if __name__ == '__main__':
-        #     TnHApp().run()

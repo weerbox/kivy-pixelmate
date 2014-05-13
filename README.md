@@ -2,7 +2,7 @@ kivy-pixelmate
 ==============
 kivy contest 2014 entry
 
-PixelMate is a mobile oriented (android tablets\fablets) graphical pixel art editor written in Python.
+PixelMate is a graphical pixel art editor for android devices.
 
 Requirements
 

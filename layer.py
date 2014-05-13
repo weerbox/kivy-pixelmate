@@ -1,9 +1,9 @@
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.graphics.texture import Texture
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.widget import Widget
-from kivy.core.window import Window
 from kivy.core.image import Image
 from kivy.uix.bubble import Bubble
 from kivy.uix.bubble import BubbleButton
@@ -11,8 +11,8 @@ from kivy.graphics.fbo import Fbo
 from kivy.animation import Animation
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.boxlayout import BoxLayout
-
-from kivy.properties import ListProperty
+from kivy.event import EventDispatcher
+from kivy.properties import ListProperty, BooleanProperty
 
 import improc
 from globals import *
@@ -44,7 +44,6 @@ class LayerBubble(Bubble):
         self.pos_hint = {'center_x': -0.4, 'y': 0.4}
         self.orientation = 'vertical'
         self.arrow_pos = 'right_bottom'
-
         self.add_widget(BubbleButton(text='Add new', on_press=self.on_children_press))
         self.add_widget(BubbleButton(text='Clone', on_press=self.on_children_press))
         if items >= 3:
@@ -52,44 +51,32 @@ class LayerBubble(Bubble):
         if items == 4:
             self.add_widget(BubbleButton(text='Merge', on_press=self.on_children_press))
         self.add_widget(BubbleButton(text='Clear', on_press=self.on_children_press))
-
         LayerBubble.item_list.append(self)
-
 
     def on_touch_down(self, touch):
         if super(LayerBubble, self).on_touch_down(touch):
             return True
-
         if touch.is_mouse_scrolling:
             return False
         if not self.collide_point(touch.x, touch.y):
             return False
         if self in touch.ud:
             return False
-        #touch.grab(self)
         touch.ud[self] = True
-
         if self.collide_point(*touch.pos):
             self.pressed = touch.pos
             return True
         return True
 
-
     def on_touch_move(self, touch):
-        #if touch.grab_current is self:
-        #    return True
         if super(LayerBubble, self).on_touch_move(touch):
             return True
         return self in touch.ud
 
     def on_touch_up(self, touch):
-        #if touch.grab_current is self:
-        #    touch.ungrab(self)
-
         if super(LayerBubble, self).on_touch_up(touch):
             return True
         return self in touch.ud
-
 
     def on_children_press(self, bbutton):
         if bbutton.text == 'Add new':
@@ -103,7 +90,6 @@ class LayerBubble(Bubble):
         elif bbutton.text == 'Clear':
             self._check_and_call('clear')
         self.parent.remove_widget(self)
-
 
     def _check_and_call(self, key):
         if LayerBubble.callbacks.has_key(key):
@@ -124,22 +110,17 @@ class Layer(Widget):
         texture = Texture.create(size=size, colorfmt='rgba', bufferfmt='ubyte')
         texture.mag_filter = 'nearest'
         texture.min_filter = 'nearest'
-
         return texture
-
 
     @staticmethod
     def create_bg_rect(size):
         if not Layer.layer_bg_texture:
-            path = os.path.join(os.getcwd(), '.kivy/data/bg3.png')
-            print >> sys.stderr, path
+            path = data_path('bg3.png')
             Layer.layer_bg_texture = Image(path).texture
             Layer.layer_bg_texture.mag_filter = 'nearest'
             Layer.layer_bg_texture.min_filter = 'nearest'
             Layer.layer_bg_texture.wrap = 'repeat'
-
         Layer.layer_bg_rect = Rectangle(texture=Layer.layer_bg_texture, pos=(0, 0), size=size)
-
         nb_repeat_x = size[0] / 8
         nb_repeat_y = size[1] / 8
         t = 0
@@ -151,26 +132,21 @@ class Layer(Widget):
         )
         return Layer.layer_bg_rect
 
-
     def __init__(self, app, size, **kwargs):
         Widget.__init__(self, **kwargs)
         self.app = app
         self.is_active = False
         Layer.create_bg_rect(size=size)
         self.texture = Layer._create_texture(size=size)
-
         self.rect = self._create_textured_rect(self.texture)
-        # self.box_texture = improc.texture_copy(self.texture, smooth=True)
-        self.textures_array = []  # array of textures for undo
+        self.textures_array = []
         self._textures_array_index = 0
         self.visible = True
         self.preview_rect = None
         self.texture_locked = False
 
-
     def new_texture(self, size):
         self.texture = Layer._create_texture(size=size)
-        # self.box_texture = improc.texture_copy(self.texture, smooth=True)
         self.put_texture_on_canvas(self.texture)
 
     def _create_textured_rect(self, texture):
@@ -180,7 +156,6 @@ class Layer(Widget):
 
     def replace_texture(self, texture):
         self.texture = texture
-        # self.box_texture = improc.copy_texture(self.texture, smooth=True)
         self.rect = self._create_textured_rect(texture)
         self.put_texture_on_canvas(texture)
 
@@ -191,14 +166,12 @@ class Layer(Widget):
             bg_tex = Layer.layer_bg_texture.get_region(0, 0, self.size[0], self.size[1])
             self.previewRectBG = Rectangle(texture=bg_tex, pos=(self.x, self.y),
                                            size=(self.size[0], self.size[1]))
-            # self.box_texture = improc.texture_copy(self.texture, smooth=True)
             self.preview_rect = Rectangle(texture=self.texture, pos=(self.x, self.y),
                                           size=(self.size[0], self.size[1]))
         self.canvas.ask_update()
 
     def put_texture_on_canvas(self, texture):
         self.put_rects_on_canvas()
-
 
     def switch_visible(self):
         self.visible = not self.visible
@@ -226,9 +199,7 @@ class Layer(Widget):
 
 
     def clear_texture(self):
-        # self.texture = Texture.create(size=self.app.aPaint.fbo.texture.size, colorfmt='rgba', bufferfmt='ubyte')
         self.texture = Layer._create_texture(size=self.app.aPaint.fbo.texture.size)
-
         self.rect = Rectangle(texture=self.texture, pos=(0, 0), size=self.texture.size)
 
     def lock_texture(self):
@@ -246,6 +217,8 @@ class LayerBox(Widget):
     boxlist = []
     callbacks = {}
     app = None
+
+    _is_active = BooleanProperty(False)
 
     @staticmethod
     def select_rect_update():
@@ -289,50 +262,34 @@ class LayerBox(Widget):
         self.size_per = 0.19
         self.selrect_w = 0.003 * Window.size[0]
         Widget.__init__(self, orientation='horizontal', **kwargs)
-
         LayerBox.app = self.app = app
         self.on_press_callback = None
         self.add_new_callback = None
         self.size_hint = (None, None)
         self.layout = RelativeLayout(**kwargs)
-        self.btn_view = Button(text='O', size_hint=(0.3, 0.5),
-                               on_press=self.switch_visible)
-        # self.btn_menu = Button(text='=', pos_hint={'x': 0, 'y': 0},
-        #                        on_press=self.show_bubble)
-        self.btn_menu = Button(text='=', pos_hint={'x': 0, 'y': 0}, on_press=self.switch_lock)
-        self.btn_view.background_color = [1, 1, 1, 0.6]
-        self.btn_menu.background_color = [1, 1, 1, 0.6]
-
-        # self.layer = Layer(app, pos_hint={'x': 0.3, 'y': 0})
+        self.btn_view = ToggleButton(background_normal=data_path('show.png'),
+                                     background_down=data_path('show_down.png'), border=[0, 0, 0, 0],
+                                     on_press=self.switch_visible)
+        self.btn_menu = ToggleButton(background_normal=data_path('lock.png'),
+                                     background_down=data_path('lock_down.png'), border=[0, 0, 0, 0],
+                                     on_press=self.switch_lock)
         self.layer = Layer(app, size=texture_size, pos_hint={'x': 0, 'y': 0})
-
         self.size = [self.size_per * Window.size[0], self.size_per * Window.size[1]]
-        self.btn_view.size = [0.3 * self.size[0], 0.5 * self.size[1]]
-        self.btn_menu.size = [0.3 * self.size[0], 0.5 * self.size[1]]
-        # self.layer.size = self.calc_layer_size(texture_size)
-
-        self.btn_view.pos = (0, 0.5 * self.height)
+        self.btn_view.size = [0.36 * self.size[1], 0.36 * self.size[1]]
+        self.btn_menu.size = [0.36 * self.size[1], 0.36 * self.size[1]]
+        self.btn_view.pos = (0, 0.64 * self.height)
         self.btn_menu.pos = (0, 0)
-        # self.layer.pos = (self.btn_menu.size[0], (self.size[1]-self.layer.size[1])/2.0)
         self.layer.pos = (0, (self.size[1] - self.layer.size[1]) / 2.0)
-
         self.layout.add_widget(self.layer)
         self.layout.add_widget(self.btn_view)
         self.layout.add_widget(self.btn_menu)
-
         self.add_widget(self.layout)
-
         self._select_line = None
-
         self.update_size_pos(texture_size)
-
         LayerBox.boxlist.append(self)
-
         self.put_rects_on_canvas()
-
         if len(LayerBox.boxlist) == 1:
             LayerBox.activate(0)
-
 
     @property
     def is_active(self):
@@ -347,28 +304,16 @@ class LayerBox(Widget):
 
     def switch_visible(self, *args):
         self.layer.switch_visible()
-        if self.layer.visible:
-            self.btn_view.text = 'O'
-        else:
-            self.btn_view.text = 'X'
-
         self.app.update()
 
     def switch_lock(self, *args):
         self.layer.switch_lock_texture()
-        if self.layer.texture_locked:
-            self.btn_menu.text = 'L'
-        else:
-            self.btn_menu.text = '='
-
         self.app.update()
-
 
     def calc_layer_size(self, texture_size):
         k1 = float(self.size[0]) / float(self.size[1])
         k2 = float(texture_size[0]) / float(texture_size[1])
         if k2 > k1:
-            # w = 0.7 * self.width
             w = 1.0 * self.width
             h = w / k2
         else:
@@ -412,41 +357,35 @@ class LayerBox(Widget):
         touch.ud[self] = True
         self.dispatch('on_press')
 
-
     def on_touch_move(self, touch):
-        #if touch.grab_current is self:
-        #    return True
         if super(LayerBox, self).on_touch_move(touch):
             return True
         return self in touch.ud
 
     def on_touch_up(self, touch):
-        #if touch.grab_current is self:
-        #    touch.ungrab(self)
         if super(LayerBox, self).on_touch_up(touch):
             return True
         return self in touch.ud
 
     def on_press(self):
         LayerBox.last_active = LayerBox.active
-        LayerBox.activate(LayerBox.boxlist.index(self))  # kostil
-        # LayerBox.active = self
-
+        LayerBox.activate(LayerBox.boxlist.index(self))
         LayerBox.select_rect_update()
 
     def set_active(self):
         LayerBox.activate(LayerBox.boxlist.index(self))
 
+    def on__is_active(self, instance, value):
+        LayerBox.select_rect_update()
 
     def on_release(self):
         pass
 
     def add_selrect(self):
         with self.canvas.before:
-            Color(0, 0, 1, 1)
+            Color(54. / 256, 171. / 256, 214. / 256, 1)
             self._select_line = Rectangle(pos=(self.x - self.selrect_w, self.y - self.selrect_w),
                                           size=(self.size[0] + self.selrect_w * 2, self.size[1] + self.selrect_w * 2))
-
 
     def remove_selrect(self):
         if self._select_line is not None:
@@ -454,9 +393,11 @@ class LayerBox(Widget):
             self._select_line = None
 
 
-class LayerRibbon(RelativeLayout):
+class LayerRibbon(RelativeLayout, EventDispatcher):
+    hidden = BooleanProperty(True)
     __events__ = ('on_press', 'on_release')
 
+    layer_box_list = ListProperty([])
 
     @staticmethod
     def activate(id):
@@ -466,15 +407,11 @@ class LayerRibbon(RelativeLayout):
     def bg_texture():
         return Layer.layer_bg_texture
 
-    # @staticmethod
-    # def set_callback(key, callback):
-    #     LayerBubble.set_callback(key, callback)
-
-
     def __init__(self, app, **kwargs):
         pos = ListProperty([0, 0])
         RelativeLayout.__init__(self, **kwargs)
         self.app = app
+        self.padding_y = 1
         self.on_press_callback = None
         self.but_remove = None
         self.but_add = None
@@ -482,117 +419,96 @@ class LayerRibbon(RelativeLayout):
         self.but_merge = None
         self.but_remove = None
         self.button_list = []
-
         self.offset_y = 0
-
         self.padding_y_per = 0.01
-
         self.start_padding = Window.height * LAYER_RIBBON_BUTTON_HEIGHT_HINT + LAYERBOX_PADDING[3]
         self.padding_y = Window.height * self.padding_y_per
-
-        # self.layout_size_per = 0.21
         self.size_child_per = 0.19
-        self.size_hint = (LAYER_RIBBON_WIDTH_HINT, 1)
-        self.pos = (Window.width, 0)
-        self.in_pos = (Window.width - Window.width * (PALLETE_LAYOUT_SIZE_HINT[0] + LAYER_RIBBON_WIDTH_HINT), 0)
+        self.size_hint = LAYER_RIBBON_SIZE_HINT
         self.index = 0
         self._bg_rect = None
-        self.size = (Window.width * LAYER_RIBBON_WIDTH_HINT, Window.height)
-
+        self._bg_frame = None
+        self.size = (Window.width * LAYER_RIBBON_SIZE_HINT[0], Window.height * LAYER_RIBBON_SIZE_HINT[1])
         self.layout = RelativeLayout(pos=(0, 0))
         self.layout.bind(children=self._layerbox_layout_on_children)
-        # self.layout.pos = (10, 0)
-
         self.layout.size_hint = (None, None)
         self.layout.size = (Window.width * self.size_child_per, 0)
-
         self.layout.canvas.ask_update()
-
-        self.scroll_view = ScrollView(size=(Window.width * LAYER_RIBBON_WIDTH_HINT, Window.height))
+        self.scroll_view = ScrollView(
+            size=(Window.width * LAYER_RIBBON_SIZE_HINT[0], Window.height * LAYER_RIBBON_SIZE_HINT[1]))
         self.scroll_view.scroll_y = 0.0
-
         self.scroll_view.add_widget(self.layout)
         self.add_widget(self.scroll_view)
         self._create_ribbon_buttons()
-
-
-
-
-        # self.layout.size = (Window.width * self.size_child_per, self.size[1])
-
-        self.out_pos = (Window.width, self.pos[1])
-        self.side_hidden = True
-        self.animation_show = Animation(pos=self.in_pos, transition='in_quad', duration=0.3)
-        self.animation_hide = Animation(pos=self.out_pos, transition='in_quad', duration=0.3)
-
+        self.in_pos1 = (Window.width * LAYER_RIBBON_POS_HINT_1[0], Window.height * LAYER_RIBBON_POS_HINT_1[1])
+        self.out_pos1 = (Window.width + 1, Window.height * LAYER_RIBBON_POS_HINT_1[1])
+        self.in_pos2 = (Window.width * LAYER_RIBBON_POS_HINT_2[0], Window.height * LAYER_RIBBON_POS_HINT_2[1])
+        self.out_pos2 = (Window.width + 1, Window.height * LAYER_RIBBON_POS_HINT_2[1])
+        self.pos = (Window.width + 1, Window.height * LAYER_RIBBON_POS_HINT_1[1])
+        self.hidden = True
+        self.animation_show1 = Animation(pos=self.in_pos1, transition='in_quad', duration=0.3)
+        self.animation_hide1 = Animation(pos=self.out_pos1, transition='in_quad', duration=0.3)
+        self.animation_show2 = Animation(pos=self.in_pos2, transition='in_quad', duration=0.3)
+        self.animation_hide2 = Animation(pos=self.out_pos2, transition='in_quad', duration=0.3)
         self.add_to_undo_callback = None
-
-        def print_this(self):
-            print self.scroll_view.scroll_y
-
-        self.scroll_view.bind(scroll_y=lambda *args: print_this(self))
-
 
     def _layerbox_layout_on_children(self, *args):
         self.layout.height = self.get_layerbox_layout_height()
 
     def _create_ribbon_buttons(self):
-
-        self.button_layout = BoxLayout(size_hint=(1, LAYER_RIBBON_BUTTON_HEIGHT_HINT), orientation="horizontal",
-                                       padding=[0, 0, 0, 0], spacing=2)
-
-        self.but_add = Button(text='Add')
-        self.but_clone = Button(text='Cln')
-        self.but_merge = Button(text='Mrg')
-        self.but_remove = Button(text='Del')
+        self.button_layout = BoxLayout(pos=(0, 0), size_hint=(None, None),
+                                       size=(self.width, LAYER_RIBBON_BUTTON_HEIGHT_HINT * WIN_HEIGHT),
+                                       orientation="horizontal",
+                                       spacing=1, padding=[1, 0, 1, 1])
+        self.but_add = Button(background_normal=data_path('add.png'),
+                              background_down=data_path('add_down.png'), border=[0, 0, 0, 0])
+        self.but_clone = Button(background_normal=data_path('clone.png'),
+                                background_down=data_path('clone_down.png'), border=[0, 0, 0, 0])
+        self.but_merge = Button(background_normal=data_path('merge.png'),
+                                background_down=data_path('merge_down.png'),
+                                background_disabled_normal=data_path('merge_disable.png'),
+                                border=[0, 0, 0, 0])
+        self.but_remove = Button(background_normal=data_path('del.png'),
+                                 background_down=data_path('del_down.png'),
+                                 background_disabled_normal=data_path('del_disable.png'),
+                                 border=[0, 0, 0, 0])
         self.button_list = [self.but_add, self.but_clone, self.but_merge, self.but_remove]
 
         with self.button_layout.canvas:
-            Color(0.5, 0.5, 0.5)
-            self.button_layout_rect = Rectangle(pos=(0, 0), size=self.button_layout.size)
+            Color(0, 0, 0, 0.7)
+            self.button_layout_rect = Rectangle(pos=(0, 0),
+                                                size=(self.button_layout.size[0], self.button_layout.size[1] + 1))
 
         def resize(self):
             self.button_layout_rect.size = self.button_layout.size
-
 
         self.button_layout.bind(size=lambda *args: resize(self))
 
         for but in self.button_list:
             self.button_layout.add_widget(but)
-
         self.add_widget(self.button_layout)
-
 
     def get_layerbox_layout_height(self):
         return self.start_padding + self.offset_y * (len(LayerBox.boxlist))
-
 
     def _add_layer(self, texture_size):
         size_hint = (1, self.size_child_per)
         pos = (LAYERBOX_PADDING[0], self.start_padding + self.offset_y * len(LayerBox.boxlist))
         lb = LayerBox(app=self.app, texture_size=texture_size, size_hint=size_hint, pos=pos)
-
+        lb.bind(_is_active=self.on_layer_box_activate)
+        self.layer_box_list.append(lb)
         lb.on_press_callback = self.on_press_callback
-
         self.offset_y = lb.size[1] + self.padding_y
         lb.put_rects_on_canvas()
         self.layout.add_widget(lb)
         self.canvas.ask_update()
-
-        print self.scroll_view.scroll_y
-
         return lb
 
     def update(self):
         self.canvas.ask_update()
 
-    # def update_layer_size_pos(self):
-    #     for lb in LayerBox.boxlist:
-    #         lb.update_size_pos()
-
     def new_layer(self, texture_size):
         return self._add_layer(texture_size=texture_size)
-
 
     def clone_layer(self, source_lb):
         new_lb = self._add_layer(texture_size=source_lb.layer.texture.size)
@@ -602,7 +518,6 @@ class LayerRibbon(RelativeLayout):
             tex = source_lb.layer.texture
         new_lb.layer.texture = improc.texture_copy(tex)
         new_lb.put_rects_on_canvas()
-
 
     def merge_layer(self, source_lb):
         texture1 = source_lb.get_texture()
@@ -616,19 +531,17 @@ class LayerRibbon(RelativeLayout):
             else:
                 lower_lb.layer.texture = restex
             lower_lb.put_rects_on_canvas()
-            print upper_id, upper_id - 1
 
     def remove_layer(self, laybox):
         self.layout.remove_widget(laybox)
+        self.layer_box_list.remove(laybox)
         LayerBox.boxlist.remove(laybox)
-        # del laybox
+
         LayerBox.bubbles_update()
         self.canvas.ask_update()
         self.update_pos()
 
-
     def remove_all_layers(self):
-
         for laybox in LayerBox.boxlist:
             self.layout.remove_widget(laybox)
             del laybox
@@ -636,6 +549,28 @@ class LayerRibbon(RelativeLayout):
             self.canvas.ask_update()
             self.update_pos()
         LayerBox.boxlist[:] = []
+        self.layer_box_list[:] = []
+
+    def on_layer_box_list(self, instance, value):
+        self.but_merge.disabled = False
+        self.but_remove.disabled = False
+        if len(value) <= 1:
+            self.but_remove.disabled = True
+        else:
+            self.but_remove.disabled = False
+        if len(value) <= 1:
+            self.but_merge.disabled = True
+        else:
+            self.but_merge.disabled = False
+        if self.get_active_layerbox() is self.layer_box_list[0]:
+            self.but_merge.disabled = True
+
+    def on_layer_box_activate(self, instance, value):
+        if value is True:
+            if instance is self.layer_box_list[0]:
+                self.but_merge.disabled = True
+            elif len(self.layer_box_list) > 1:
+                self.but_merge.disabled = False
 
     def blit_layers_to_texture(self):
         fbo = Fbo(size=LayerBox.active.layer.texture.size)
@@ -655,7 +590,6 @@ class LayerRibbon(RelativeLayout):
             self.canvas.ask_update()
             ind += 1
 
-
     def layers_count(self):
         return len(LayerBox.boxlist)
 
@@ -674,27 +608,25 @@ class LayerRibbon(RelativeLayout):
         return True
 
     def on_touch_move(self, touch):
-        #if touch.grab_current is self:
-        #    return True
         if super(LayerRibbon, self).on_touch_move(touch):
             return True
         return self in touch.ud
 
     def on_touch_up(self, touch):
-        #if touch.grab_current is self:
-        #    touch.ungrab(self)
-
         if super(LayerRibbon, self).on_touch_up(touch):
             return True
         return self in touch.ud
 
-
     def redraw_back(self):
         if self._bg_rect:
             self.canvas.before.remove(self._bg_rect)
+            self.canvas.before.remove(self._bg_frame)
         with self.canvas.before:
-            Color(0.5, 0.5, 0.5, 0.5)
-            self._bg_rect = Rectangle(pos=(0, 0), size=(self.size[0], WIN_HEIGHT * 1))
+            Color(88. / 256, 88. / 256, 88. / 256, 76. / 256)
+            self._bg_rect = Rectangle(pos=(0, 0), size=(self.size[0], WIN_HEIGHT * LAYER_RIBBON_SIZE_HINT[1]))
+        with self.canvas:
+            Color(0, 0, 0, 0.7)
+            self._bg_frame = Line(rectangle=(0, 1, self.size[0], WIN_HEIGHT * LAYER_RIBBON_SIZE_HINT[1] - 1))
         self.canvas.ask_update()
 
     def put_rects_on_canvas(self):
@@ -724,32 +656,37 @@ class LayerRibbon(RelativeLayout):
         return [lbox.layer.texture for lbox in LayerBox.boxlist]
 
     def on_press(self, touch):
-        # RelativeLayout.on_press(self)
+
         LayerBubble.hide_all()
-
-
-    # def on_touch_down(self, touch):
-    #     # print 'press'
-    #     if not self.collide_point(*touch.pos):
-    #         # print 'out press'
-    #         self.animate_hide()
 
     def on_release(self):
         RelativeLayout.on_release(self)
 
     def animate_hide(self, *args):
-        if not self.side_hidden:
-            self.animation_hide.start(self)
-            self.side_hidden = True
-            LayerBubble.hide_all()
+        if not self.hidden:
+            if self.app.palette_hidden():
+                self.animation_hide1.start(self)
+            else:
+                self.animation_hide2.start(self)
+            self.hidden = True
 
     def animate_show(self, *args):
-        if self.side_hidden:
-            self.animation_show.start(self)
-            self.side_hidden = False
+        if self.hidden:
+            if self.app.palette_hidden():
+                self.animation_show1.start(self)
+            else:
+                self.animation_show2.start(self)
+            self.hidden = False
 
     def animate_switch(self, *args):
-        if not self.side_hidden:
+        if not self.hidden:
             self.animate_hide()
         else:
             self.animate_show()
+
+    def animate_move(self, position):
+        if position == 1:
+            self.animation_show1.start(self)
+        elif position == 2:
+            self.animation_show2.start(self)
+

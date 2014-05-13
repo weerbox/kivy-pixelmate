@@ -6,7 +6,7 @@
 	{
 		"type": "numeric",
 		"title": "Tools point size",
-		"desc": "Size of touch points for draging\transforming",
+		"desc": "Size of touch points for dragging & transforming",
 		"section": "editor",
 		"key": "tools_touch_point_size"
 	},
