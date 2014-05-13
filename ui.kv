@@ -1,0 +1,111 @@
+#: import globals globals
+
+<Toolbar>:
+    layout: box_layout.__self__
+    cover_layout: float_layout.__self__
+    btn_pen: button_pen.__self__
+    tool_menu: tool_bubble.__self__
+    btn_figs: button_figs.__self__
+    BoxLayout:
+        id: box_layout
+        orientation: 'horizontal'
+        BoxLayout:
+            orientation: 'vertical'
+            ToolToggleButton:
+                tool: 'erase'
+                group: 'tools'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('eraser.png')
+                background_down: globals.data_path('eraser_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolToggleButton:
+                tool: 'fill'
+                group: 'tools'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('buck.png')
+                background_down: globals.data_path('buck_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolToggleButton:
+                tool: 'select'
+                group: 'tools'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('select.png')
+                background_down: globals.data_path('select_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolButton:
+                tool: 'zoomx1'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('zoom_1-1.png')
+                background_down: globals.data_path('zoom_1-1_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolButton:
+                tool: 'zoomin'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('zoom_in.png')
+                background_down: globals.data_path('zoom_in_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolButton:
+                tool: 'undo'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('undo.png')
+                background_down: globals.data_path('undo_down.png')
+                on_press: root.tools_on_button_press(self)
+        BoxLayout:
+            orientation: 'vertical'
+            ToolToggleButton:
+                id: button_pen
+                tool: 'pencil'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('pencil.png')
+                background_down: globals.data_path('pencil_down.png')
+                group: 'tools'
+                on_press: root.tools_on_button_press(self)
+            MenuButton:
+                id: button_figs
+                tool: 'figures'
+                group: 'tools'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('line.png')
+                background_down: globals.data_path('line_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolToggleButton:
+                tool: 'picker'
+                group: 'tools'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('picker.png')
+                background_down: globals.data_path('picker_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolToggleButton:
+                tool: 'move'
+                group: 'tools'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('move.png')
+                background_down: globals.data_path('move_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolButton:
+                tool: 'zoomout'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('zoom_out.png')
+                background_down: globals.data_path('zoom_out_down.png')
+                on_press: root.tools_on_button_press(self)
+            ToolButton:
+                tool: 'redo'
+                border: [0, 0, 0, 0]
+                background_normal: globals.data_path('redo.png')
+                background_down: globals.data_path('redo_down.png')
+                on_press: root.tools_on_button_press(self)
+    ToolBubble:
+        toolbar: root
+        id: tool_bubble
+        height: button_figs.height
+        width: self.height*3
+        y: button_figs.y
+        x: button_figs.right
+        arrow_pos: 'left_mid'
+        orientation: 'horizontal'
+    FloatLayout:
+        id: float_layout
+        pos: (0, 0)
+        size: root.size
+
+
