@@ -50,7 +50,7 @@ class Paint(StencilView):
         self.px = None
         self.py = None
         self.grid_texture = None
-        self.backup_touch = None
+        self.active_layer_last_texture = None
 
     def grid_create(self, size):
         self.grid_texture = Texture.create(size=size, colorfmt='rgba', bufferfmt='ubyte')
@@ -279,6 +279,11 @@ class Paint(StencilView):
         return [self.fbo_rect.texture.size[0] * self.scale,
                 self.fbo_rect.texture.size[1] * self.scale]
 
+    def double_touch(self):
+        if len(self.touches) > 1:
+            return True
+
+
     def on_touch_down(self, touch):
         self.tool_buffer.on_touch_down(touch)
 
@@ -299,7 +304,15 @@ class Paint(StencilView):
             return False
 
         touch.grab(self)
+
         self.add_touch(touch)
+
+        if len(self.touches) == 1:
+            self.active_layer_backup_texture()
+
+        if self.double_touch():
+            self.active_layer_set_last_backup_texture()
+            return
 
         if not self.app.layer_ribbon.get_active_layer().visible:
             dialog.PopupMessage("Notification", "The current layer is hidden, make it visible for edit")
@@ -373,7 +386,9 @@ class Paint(StencilView):
             self.scale_canvas(0.98)
             return
         if len(self.touches) > 1:
+            # self.do_undo()
             return
+
         if self.app.active_tool == TOOL_PENCIL:
             if self.app.dialog_state == self.app.state['root']:
                 self.fbo_render(touch)
@@ -421,6 +436,12 @@ class Paint(StencilView):
         if not self.collide_point(*touch.pos):
             return False
         touch.ungrab(self)
+
+        if self.double_touch():
+            _not_add_too_undo = True
+        else:
+            _not_add_too_undo = False
+
         if touch:
             try:
                 self.touches.remove(touch)
@@ -457,8 +478,9 @@ class Paint(StencilView):
                 rect = self.app.layer_ribbon.get_active_layer().rect
                 pos = rect.pos[0] * self.scale, rect.pos[1] * self.scale
                 size = rect.size[0] * self.scale, rect.size[1] * self.scale
-                if pos[0] <= touch.x <= pos[0] + size[0] and pos[1] <= touch.y <= pos[1] + size[1]:
-                    self.add_undo_stack()
+                if not _not_add_too_undo:
+                    if pos[0] <= touch.x <= pos[0] + size[0] and pos[1] <= touch.y <= pos[1] + size[1]:
+                        self.add_undo_stack()
         return True
 
     def add_redo_stack(self):
@@ -470,6 +492,7 @@ class Paint(StencilView):
         self.layer_undo_stack = self.layer_undo_stack[:self.undo_layer_index + 1]
         self.layer_undo_stack.append(_active_layer)
         self.undo_layer_index = len(self.layer_undo_stack) - 1
+        print 'add to undo stack'
 
     def do_undo(self, *args):
         if self.layer_undo_stack:
@@ -482,6 +505,22 @@ class Paint(StencilView):
                 self.undo_layer_index -= 1
                 self.canvas_put_drawarea()
             self.fbo_update_pos()
+
+    def active_layer_backup_texture(self):
+        active_layer = self.app.layer_ribbon.get_active_layer()
+        self.active_layer_last_texture = improc.texture_copy(active_layer.texture)
+
+    def active_layer_set_last_backup_texture(self):
+        active_layer = self.app.layer_ribbon.get_active_layer()
+        # texture = active_layer.textures_array[-1]
+        active_layer.replace_texture(self.active_layer_last_texture)
+
+        self.fbo_create(active_layer.texture.size, active_layer.texture)
+
+        print len(active_layer.textures_array)
+        self.canvas_put_drawarea()
+        self.fbo_update_pos()
+        self.canvas.ask_update()
 
     def do_redo(self, *args):
         if self.layer_undo_stack:
