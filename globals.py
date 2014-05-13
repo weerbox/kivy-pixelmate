@@ -7,9 +7,9 @@ from kivy.app import App
 import pygame
 
 
-APP_VERSION = 0.77
+APP_VERSION = 0.775
 
-MAINMENU_BUTTON_TEXT_SIZE = 20
+MAINMENU_BUTTON_TEXT_SIZE = 22
 BUTTON_TEXT_SIZE = 18
 
 APP = App.get_running_app

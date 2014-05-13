@@ -63,8 +63,11 @@ class PM(App):
         win = self._app_window
         self.toolbar.tools_select(TOOL_PENCIL)
         self.aPaint.refbo()
-        self.layer_ribbon._add_layer(texture_size=DEFAULT_IMAGE_SIZE)
-        self.layer_ribbon.activate(0)
+
+        # self.layer_ribbon._add_layer(texture_size=DEFAULT_IMAGE_SIZE)
+        # self.layer_ribbon.activate(0)
+
+        self.layer_add(texture_size=DEFAULT_IMAGE_SIZE)
 
     def _key_handler(self, window, *largs):
         key = largs[0]
@@ -101,7 +104,11 @@ class PM(App):
         opt = Options(self.config, settings)
 
     def build_config(self, config):
-        config.setdefaults('editor', {'tools_touch_point_size': '50'})
+        config.setdefaults('toolbars', {'toolbar_autohide': '1'})
+        config.setdefaults('toolbars', {'palette_autohide': '1'})
+        config.setdefaults('toolbars', {'layer_ribbon_autohide': '1'})
+
+        config.setdefaults('editor', {'tools_touch_point_size': '60'})
         config.setdefaults('misc', {'exitconfirm': '1'})
         config.setdefaults('misc', {'layer_delete_confirm': '1'})
         config.setdefaults('misc', {'layer_merge_confirm': '1'})
@@ -130,9 +137,13 @@ class PM(App):
     def build_tools(self):
         self.aPaint.tool_select = tools.SelectTool(app=self)
         self.aPaint.tool_line = tools.LineTool(app=self)
+        self.aPaint.tool_line.on_render_callback = self.aPaint.add_undo_stack
         self.aPaint.tool_rect = tools.RectTool(app=self)
+        self.aPaint.tool_rect.on_render_callback = self.aPaint.add_undo_stack
         self.aPaint.tool_ellipse = tools.EllipseTool(app=self)
+        self.aPaint.tool_ellipse.on_render_callback = self.aPaint.add_undo_stack
         self.aPaint.tool_buffer = tools.BufferTool(app=self)
+        self.aPaint.tool_buffer.on_render_callback = self.aPaint.add_undo_stack
 
     def show_menu(self):
         if self.main_menu not in self.root.children:
@@ -202,16 +213,21 @@ class PM(App):
         textures_list = app.layer_ribbon.get_textures_list()
         textures_list_save_to_zip(textures_list, fpath)
 
-    def layer_add(self, layer_box, texture_size=None):
-        if texture_size is None:
-            texture_size = layer_box.layer.texture.size
+    def layer_add(self, texture_size):
         self.layer_ribbon._add_layer(texture_size=texture_size)
         self.layer_ribbon.activate(len(layer.LayerBox.boxlist) - 1)
         self.aPaint.fbo_update_pos()
+        # print self.layer_ribbon.get_active_layer()
+        self.aPaint.add_undo_stack()
+
+    def layer_add_same_as_layerbox(self, layer_box):
+        texture_size = layer_box.layer.texture.size
+        self.layer_add(texture_size)
 
     def layer_clone(self, layer_box):
         self.layer_ribbon.clone_layer(layer_box)
         self.aPaint.fbo_update_pos()
+        self.aPaint.add_undo_stack()
 
     def layer_merge(self, layer_box, confirmation=True):
         if not self.config.getint('misc', 'layer_merge_confirm'):
@@ -327,7 +343,7 @@ class PM(App):
         self.palette.bind(hidden=self.on_palette_hidden)
         self.layer_ribbon.bind(hidden=self.on_layer_ribbon_hidden)
         self.layer_ribbon.index = self.root.children.index(self.layer_ribbon)
-        self.layer_ribbon.but_add.bind(on_press=lambda *args: self.layer_add(layer.LayerBox.active))
+        self.layer_ribbon.but_add.bind(on_press=lambda *args: self.layer_add_same_as_layerbox(layer.LayerBox.active))
         self.layer_ribbon.but_merge.bind(on_press=lambda *args: self.layer_merge(layer.LayerBox.active))
         self.layer_ribbon.but_clone.bind(on_press=lambda *args: self.layer_clone(layer.LayerBox.active))
         self.layer_ribbon.but_remove.bind(on_press=lambda *args: self.layer_remove(layer.LayerBox.active))

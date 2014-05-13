@@ -512,12 +512,17 @@ class LayerRibbon(RelativeLayout, EventDispatcher):
 
     def clone_layer(self, source_lb):
         new_lb = self._add_layer(texture_size=source_lb.layer.texture.size)
-        if source_lb.active:
-            tex = self.app.aPaint.fbo_get_texture()
-        else:
-            tex = source_lb.layer.texture
-        new_lb.layer.texture = improc.texture_copy(tex)
+        # if source_lb.active:
+        #     tex = self.app.aPaint.fbo_get_texture()
+        # else:
+        #     tex = source_lb.layer.texture
+        tex = source_lb.layer.texture
+
+        # new_lb.layer.texture = improc.texture_copy(tex)
+        texture = improc.texture_copy(source_lb.layer.texture)
+        new_lb.layer.replace_texture(texture)
         new_lb.put_rects_on_canvas()
+        self.canvas.ask_update()
 
     def merge_layer(self, source_lb):
         texture1 = source_lb.get_texture()

@@ -166,6 +166,7 @@ class VertexTool():
         self._catch_pos = None
         self.fbo = None
         self.render_fbo = None
+        self.on_render_callback = None
         VertexTool.item_list.append(self)
 
     def on_touch_down(self, touch, render_fbo, fbo):
@@ -379,6 +380,8 @@ class VertexTool():
             self._create_body(points, width=1)
         fbo.release()
         fbo.draw()
+        if callable(self.on_render_callback):
+            self.on_render_callback()
 
     def _render_and_reset_state(self, render_fbo, fbo):
         self.state = None
@@ -536,19 +539,44 @@ class SelectTool(VertexTool):
 
     def get_selection_size(self):
         size = [abs(self.point[2] - self.point[0]), abs(self.point[3] - self.point[1])]
-        return [int(size[0] / self.app.aPaint.scale), int(size[1] / self.app.aPaint.scale)]
+        translated_size = [int(size[0] / self.app.aPaint.scale), int(size[1] / self.app.aPaint.scale)]
+        pos1 = self.get_selection_pos()
+        pos2 = self.get_selection_reverse_pos()
+        rsize = [pos2[0]-pos1[0], pos2[1]-pos1[1]]
+        return rsize
 
     def get_selection_pos(self):
         fbo_coord = [self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1],
                      self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1]]
+
         point = map(self._translate_point, self.point, fbo_coord)
         if point[0] > point[2]:
             point[0] = point[2]
         if point[1] > point[3]:
             point[1] = point[3]
         pos = [point[0], point[1]]
-        print pos
+        if pos[0] < 0:
+            pos[0] = 0
+        if pos[1] < 0:
+            pos[1] = 0
         return pos
+
+    def get_selection_reverse_pos(self):
+        fbo_coord = [self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1],
+                     self.app.aPaint.fbo_rect.pos[0], self.app.aPaint.fbo_rect.pos[1]]
+
+        point = map(self._translate_point, self.point, fbo_coord)
+        if point[0] > point[2]:
+            point[2] = point[0]
+        if point[1] > point[3]:
+            point[3] = point[1]
+        pos = [point[2], point[3]]
+        if pos[0] > self.app.aPaint.fbo_rect.texture.size[0]:
+            pos[0] = self.app.aPaint.fbo_rect.texture.size[0]
+        if pos[1] > self.app.aPaint.fbo_rect.texture.size[1]:
+            pos[1] = self.app.aPaint.fbo_rect.texture.size[1]
+        return pos
+
 
     def selection_copy(self):
         tex = self.app.layer_ribbon.blit_layers_to_texture()
@@ -557,6 +585,7 @@ class SelectTool(VertexTool):
     def selection_del(self):
         x, y = self.get_selection_pos()
         w, h = self.get_selection_size()
+        print x, y, w, h, ' - ', self.app.aPaint.fbo_rect.pos, self.app.aPaint.fbo_rect.size
         self.app.aPaint.fbo.bind()
         improc.texture_replace_color(tex=self.app.aPaint.fbo.texture, pos=(x, y), color=0, size=(w, h))
         self.app.aPaint.fbo.release()
@@ -566,7 +595,9 @@ class SelectTool(VertexTool):
 
     def selection_paste(self):
         self._reset_state(self.fbo)
-        self.app.aPaint.tool_buffer.enable(self.app.aPaint.fbo)
+
+        self.app.aPaint.tool_buffer.enable(self.app.aPaint.fbo,
+                                           pos=(self.app.aPaint.fbo_rect.size[0]/2, self.app.aPaint.fbo_rect.size[1]/2))
         self.app.aPaint.canvas_put_drawarea()
 
     def selection_cut(self):
@@ -587,6 +618,7 @@ class BufferTool(ToolBehavior):
         self.pos = [0, 0]
         self.size = [0, 0]
         self.state = None
+        self.on_render_callback = None
         self._create_bar_bubble()
 
     def _create_bar_bubble(self):
@@ -594,20 +626,28 @@ class BufferTool(ToolBehavior):
         self.menu.pos = [Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0], Window.height - self.menu.size[1]]
         self.menu.width = Window.width - Window.width * (
             TOOLBAR_LAYOUT_SIZE_HINT[0] + PALETTE_LAYOUT_SIZE_HINT[0])
-        self.menu.add_button('ok', self.disable)
+        self.menu.add_button('ok', self.put_on_fbo)
         self.menu.add_button('cancel', self._cancel_paste)
 
-    def enable(self, fbo):
+    def enable(self, fbo, pos):
         self.enabled = True
-        self._create_rect(fbo)
+        self._create_rect(fbo, pos=pos)
         self.menu.show()
 
     def disable(self):
         self.enabled = False
         self.menu.hide()
 
-    def _create_rect(self, fbo):
+    def put_on_fbo(self):
+        self.enabled = False
+        self.menu.hide()
+        if callable(self.on_render_callback):
+            self.on_render_callback()
+
+    def _create_rect(self, fbo, pos):
         with fbo:
+            Color(1, 1, 1, 1)
+            self.pos = pos
             self.size = self.texture.size
             self.rect = Rectangle(pos=self.pos, texture=self.texture, size=self.texture.size)
 
