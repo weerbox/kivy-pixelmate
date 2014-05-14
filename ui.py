@@ -158,19 +158,16 @@ class ToolBubble(Bubble):
         self.size_hint = (None, None)
         self.tool = TOOL_LINE
         self.frames = []
-        self.button_line = Button(background_normal=data_path('line.png'),
-                                  background_down=data_path('line_down.png'),
-                                  border=[0, 0, 0, 0], on_press=self.on_children_press)
-        self.button_rect = Button(background_normal=data_path('rect.png'),
-                                  background_down=data_path('rect_down.png'),
-                                  border=[0, 0, 0, 0], on_press=self.on_children_press)
-        self.button_ellipse = Button(background_normal=data_path('ellipse.png'),
-                                     background_down=data_path('ellipse_down.png'),
-                                     border=[0, 0, 0, 0], on_press=self.on_children_press)
-        self.add_widget(self.button_line)
-        self.add_widget(self.button_rect)
-        self.add_widget(self.button_ellipse)
+        self.buttons = {}
+
         self.content.bind(size=self.redraw_content_frame)
+
+    def add_button(self, text, background_normal, background_down, border, on_press):
+        self.buttons[text] = Button(background_normal=background_normal,
+                                    background_down=background_down,
+                                    border=border, on_press=on_press)
+        self.add_widget(self.buttons[text])
+        return self.buttons[text]
 
     def redraw_content_frame(self, *args):
         if self.frames:
@@ -204,37 +201,24 @@ class ToolBubble(Bubble):
             return True
         return self in touch.ud
 
-    def on_children_press(self, bbutton):
-        if bbutton is self.button_rect:
-            self.app.toolbar.btn_figs.background_normal = data_path('rect.png')
-            self.app.toolbar.btn_figs.background_down = data_path('rect_down.png')
-            self.app.active_tool = TOOL_RECT
-            self.tool = TOOL_RECT
-        elif bbutton is self.button_ellipse:
-            self.app.toolbar.btn_figs.background_normal = data_path('ellipse.png')
-            self.app.toolbar.btn_figs.background_down = data_path('ellipse_down.png')
-            self.app.active_tool = TOOL_ELLIPSE
-            self.tool = TOOL_ELLIPSE
-        elif bbutton is self.button_line:
-            self.app.toolbar.btn_figs.background_normal = data_path('line.png')
-            self.app.toolbar.btn_figs.background_down = data_path('line_down.png')
-            self.app.active_tool = TOOL_LINE
-            self.tool = TOOL_LINE
-        self.parent.remove_widget(self)
-        if str(self.app.active_tool) in self.toolbar.btn_data_background_normal:
-            self.toolbar.btn_show_toolbar.background_normal = self.toolbar.btn_data_background_normal[
-                str(self.app.active_tool)]
-            self.toolbar.btn_show_toolbar.background_down = self.toolbar.btn_data_background_down[
-                str(self.app.active_tool)]
+    def select(self):
+        if self in self._parent.children:
+            self.parent.remove_widget(self)
+            if str(self.app.active_tool) in self.toolbar.btn_data_background_normal:
+                self.toolbar.btn_show_toolbar.background_normal = self.toolbar.btn_data_background_normal[
+                    str(self.app.active_tool)]
+                self.toolbar.btn_show_toolbar.background_down = self.toolbar.btn_data_background_down[
+                    str(self.app.active_tool)]
 
-    def _check_and_call(self, key):
-        if ToolBubble.callbacks.has_key(key):
-            if callable(ToolBubble.callbacks[key]):
-                ToolBubble.callbacks[key]()
-            else:
-                raise NameError('callback function ' + key + ' not callable')
+    def hide(self):
+        if self in self._parent.children:
+            self.parent.remove_widget(self)
+
+    def show(self, *args):
+        if self not in self._parent.children:
+            self._parent.add_widget(self)
         else:
-            raise NameError(key + ' callback not defined')
+            self._parent.remove_widget(self)
 
 
 class Toolbar(RelativeLayout):
@@ -247,19 +231,26 @@ class Toolbar(RelativeLayout):
         self.active_tool = None
         self.prev_tool = None
         self.pos_in = (0, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
-        self.pos_out = (-Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0], TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
+        self.pos_out = (-Window.width * TOOLBAR_LAYOUT_SIZE_HINT[0] - 1, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
         self.hidden = False
         self.animation_show = Animation(pos=self.pos_in, transition='in_quad', duration=0.3)
         self.animation_hide = Animation(pos=self.pos_out, transition='in_quad', duration=0.3)
         self.size_hint = TOOLBAR_LAYOUT_SIZE_HINT
         self.pos = (TOOLBAR_LAYOUT_POS_HINT[0] * Window.width, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
+        self.add_popup_menus()
         self.remove_widget(self.tool_menu)
+        self.remove_widget(self.tool_menu_pen)
+        self.remove_widget(self.tool_menu_eraser)
         self.btn_show_toolbar = ToggleButton(pos=(0, 0), background_normal=data_path('pencil_tool.png'),
                                              background_down=data_path('pencil_down.png'), border=[0, 0, 0, 0],
                                              size_hint=PALETTE_BTN_SHOW_SIZE_HINT, on_press=self.animate_switch)
         self.btn_data_background_normal = {
-            str(TOOL_PENCIL): data_path('pencil_tool.png'),
-            str(TOOL_ERASE): data_path('eraser_tool.png'),
+            str(TOOL_PENCIL1): data_path('pencil_tool.png'),
+            str(TOOL_PENCIL2): data_path('pencil_tool.png'),
+            str(TOOL_PENCIL3): data_path('pencil_tool.png'),
+            str(TOOL_ERASE1): data_path('eraser_tool.png'),
+            str(TOOL_ERASE2): data_path('eraser_tool.png'),
+            str(TOOL_ERASE3): data_path('eraser_tool.png'),
             str(TOOL_RECT): data_path('rect_tool.png'),
             str(TOOL_ELLIPSE): data_path('ellipse_tool.png'),
             str(TOOL_LINE): data_path('line_tool.png'),
@@ -267,10 +258,15 @@ class Toolbar(RelativeLayout):
             str(TOOL_PICKER): data_path('picker_tool.png'),
             str(TOOL_MOVE): data_path('move_tool.png'),
             str(TOOL_SELECT): data_path('select_tool.png'),
+
         }
         self.btn_data_background_down = {
-            str(TOOL_PENCIL): data_path('pencil_down.png'),
-            str(TOOL_ERASE): data_path('eraser_down.png'),
+            str(TOOL_PENCIL1): data_path('pencil_1_down.png'),
+            str(TOOL_PENCIL2): data_path('pencil_2_down.png'),
+            str(TOOL_PENCIL3): data_path('pencil_3_down.png'),
+            str(TOOL_ERASE1): data_path('eraser_1_down.png'),
+            str(TOOL_ERASE2): data_path('eraser_2_down.png'),
+            str(TOOL_ERASE3): data_path('eraser_3_down.png'),
             str(TOOL_RECT): data_path('rect_down.png'),
             str(TOOL_ELLIPSE): data_path('ellipse_down.png'),
             str(TOOL_LINE): data_path('line_down.png'),
@@ -278,8 +274,98 @@ class Toolbar(RelativeLayout):
             str(TOOL_PICKER): data_path('picker_down.png'),
             str(TOOL_MOVE): data_path('move_down.png'),
             str(TOOL_SELECT): data_path('select_down.png'),
+
         }
         self.btn_show_toolbar.state = 'down'
+
+    def add_popup_menus(self):
+        self.tool_menu.add_button(text='line', background_normal=data_path('line.png'),
+                                  background_down=data_path('line_down.png'),
+                                  border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+        self.tool_menu.add_button(text='rect', background_normal=data_path('rect.png'),
+                                  background_down=data_path('rect_down.png'),
+                                  border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+        self.tool_menu.add_button(text='ellipse', background_normal=data_path('ellipse.png'),
+                                  background_down=data_path('ellipse_down.png'),
+                                  border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+
+        self.tool_menu_pen.add_button(text='pencil_1', background_normal=data_path('pencil_1.png'),
+                                      background_down=data_path('pencil_1_down.png'),
+                                      border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+        self.tool_menu_pen.add_button(text='pencil_2', background_normal=data_path('pencil_2.png'),
+                                      background_down=data_path('pencil_2_down.png'),
+                                      border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+        self.tool_menu_pen.add_button(text='pencil_3', background_normal=data_path('pencil_3.png'),
+                                      background_down=data_path('pencil_3_down.png'),
+                                      border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+
+        self.tool_menu_eraser.add_button(text='eraser_1', background_normal=data_path('eraser_1.png'),
+                                         background_down=data_path('eraser_1_down.png'),
+                                         border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+        self.tool_menu_eraser.add_button(text='eraser_2', background_normal=data_path('eraser_2.png'),
+                                         background_down=data_path('eraser_2_down.png'),
+                                         border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+        self.tool_menu_eraser.add_button(text='eraser_3', background_normal=data_path('eraser_3.png'),
+                                         background_down=data_path('eraser_1_down.png'),
+                                         border=[0, 0, 0, 0], on_press=self.on_popup_children_press)
+
+    def on_popup_children_press(self, bbutton):
+        if bbutton is self.tool_menu.buttons['rect']:
+            self.btn_figs.background_normal = data_path('rect.png')
+            self.btn_figs.background_down = data_path('rect_down.png')
+            self.app.active_tool = TOOL_RECT
+            self.tool_menu.tool = TOOL_RECT
+            self.tool_menu.select()
+        elif bbutton is self.tool_menu.buttons['ellipse']:
+            self.btn_figs.background_normal = data_path('ellipse.png')
+            self.btn_figs.background_down = data_path('ellipse_down.png')
+            self.app.active_tool = TOOL_ELLIPSE
+            self.tool_menu.tool = TOOL_ELLIPSE
+            self.tool_menu.select()
+        elif bbutton is self.tool_menu.buttons['line']:
+            self.btn_figs.background_normal = data_path('line.png')
+            self.btn_figs.background_down = data_path('line_down.png')
+            self.app.active_tool = TOOL_LINE
+            self.tool_menu.tool = TOOL_LINE
+            self.tool_menu.select()
+
+        if bbutton is self.tool_menu_eraser.buttons['eraser_1']:
+            self.btn_eraser.background_normal = data_path('eraser_1.png')
+            self.btn_eraser.background_down = data_path('eraser_1_down.png')
+            self.app.active_tool = TOOL_ERASE1
+            self.tool_menu_eraser.tool = TOOL_ERASE1
+            self.tool_menu_eraser.select()
+        elif bbutton is self.tool_menu_eraser.buttons['eraser_2']:
+            self.btn_eraser.background_normal = data_path('eraser_2.png')
+            self.btn_eraser.background_down = data_path('eraser_2_down.png')
+            self.app.active_tool = TOOL_ERASE2
+            self.tool_menu_eraser.tool = TOOL_ERASE2
+            self.tool_menu_eraser.select()
+        elif bbutton is self.tool_menu_eraser.buttons['eraser_3']:
+            self.btn_eraser.background_normal = data_path('eraser_3.png')
+            self.btn_eraser.background_down = data_path('eraser_3_down.png')
+            self.app.active_tool = TOOL_ERASE3
+            self.tool_menu_eraser.tool = TOOL_ERASE3
+            self.tool_menu_eraser.select()
+
+        if bbutton is self.tool_menu_pen.buttons['pencil_1']:
+            self.btn_pen.background_normal = data_path('pencil_1.png')
+            self.btn_pen.background_down = data_path('pencil_1_down.png')
+            self.app.active_tool = TOOL_PENCIL1
+            self.tool_menu_pen.tool = TOOL_PENCIL1
+            self.tool_menu_pen.select()
+        elif bbutton is self.tool_menu_pen.buttons['pencil_2']:
+            self.btn_pen.background_normal = data_path('pencil_2.png')
+            self.btn_pen.background_down = data_path('pencil_2_down.png')
+            self.app.active_tool = TOOL_PENCIL2
+            self.tool_menu_pen.tool = TOOL_PENCIL2
+            self.tool_menu_pen.select()
+        elif bbutton is self.tool_menu_pen.buttons['pencil_3']:
+            self.btn_pen.background_normal = data_path('pencil_3.png')
+            self.btn_pen.background_down = data_path('pencil_3_down.png')
+            self.app.active_tool = TOOL_PENCIL3
+            self.tool_menu_pen.tool = TOOL_PENCIL3
+            self.tool_menu_pen.select()
 
     def on_size(self, *args):
         if self.cover_layout:
@@ -308,9 +394,13 @@ class Toolbar(RelativeLayout):
         if button.state == 'down':
             self.prev_tool = self.active_tool
             if button.tool == 'pencil':
-                self.app.active_tool = TOOL_PENCIL
+                # self.app.active_tool = TOOL_PENCIL
+                self.tool_menu_pen.show()
+                self.app.active_tool = self.tool_menu.tool
             if button.tool == 'erase':
-                self.app.active_tool = TOOL_ERASE
+                # self.app.active_tool = TOOL_ERASE
+                self.tool_menu_eraser.show()
+                self.app.active_tool = self.tool_menu.tool
             if button.tool == 'picker':
                 self.app.active_tool = TOOL_PICKER
             if button.tool == 'fill':
@@ -326,7 +416,7 @@ class Toolbar(RelativeLayout):
             if button.tool == 'zoomx1':
                 self.app.aPaint.scale_canvas(zoom=1 / self.app.aPaint.scale)
             if button.tool == 'figures':
-                self.show_tool_menu()
+                self.tool_menu.show()
                 self.app.active_tool = self.tool_menu.tool
             if button.tool == 'undo':
                 self.app.aPaint.do_undo()
@@ -340,10 +430,22 @@ class Toolbar(RelativeLayout):
 
 
     def tools_select(self, tool):
-        if tool == TOOL_PENCIL:
+        if tool == TOOL_PENCIL1:
             self.btn_pen._do_press()
             self.tools_on_button_press(self.btn_pen)
-        elif tool == TOOL_ERASE:
+        if tool == TOOL_PENCIL2:
+            self.btn_pen._do_press()
+            self.tools_on_button_press(self.btn_pen)
+        if tool == TOOL_PENCIL3:
+            self.btn_pen._do_press()
+            self.tools_on_button_press(self.btn_pen)
+        elif tool == TOOL_ERASE1:
+            self.btn_erase._do_press()
+            self.tools_on_button_press(self.btn_erase)
+        elif tool == TOOL_ERASE2:
+            self.btn_erase._do_press()
+            self.tools_on_button_press(self.btn_erase)
+        elif tool == TOOL_ERASE3:
             self.btn_erase._do_press()
             self.tools_on_button_press(self.btn_erase)
         elif tool == TOOL_PICKER:
@@ -362,16 +464,18 @@ class Toolbar(RelativeLayout):
             self.btn_rect._do_press()
             self.tools_on_button_press(self.btn_rect)
 
-    def show_tool_menu(self, *args):
-        if self.tool_menu not in self.children:
-            self.add_widget(self.tool_menu)
-        else:
+
+    def hide_tool_menu(self, *args):
+        if self.tool_menu in self.children:
             self.remove_widget(self.tool_menu)
 
     def animate_hide(self, *args):
         if not self.hidden:
             self.animation_hide.start(self)
             self.hidden = True
+            self.tool_menu.hide()
+            self.tool_menu_pen.hide()
+            self.tool_menu_eraser.hide()
 
     def animate_show(self, *args):
         if self.hidden:

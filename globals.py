@@ -7,7 +7,7 @@ from kivy.app import App
 import pygame
 
 
-APP_VERSION = 0.775
+APP_VERSION = 0.78
 
 MAINMENU_BUTTON_TEXT_SIZE = 22
 BUTTON_TEXT_SIZE = 18
@@ -64,12 +64,10 @@ LAYERBOX_PADDING = [3, 3, 3, 3]
 DRAWAREA_SIZE = (Window.width, Window.height)
 
 if platform() == 'android':
-    DEF_PATH = os.path.splitdrive(sys.argv[0])[0] + '/'
+    DEF_PATH = unicode(os.path.splitdrive(sys.argv[0])[0] + '/')
 else:
-    DEF_PATH = os.path.splitdrive(sys.argv[0])[0] + '/'
+    DEF_PATH = unicode(os.path.splitdrive(sys.argv[0])[0] + '/')
 
-TOOL_PENCIL = 0
-TOOL_ERASE = 1
 TOOL_PICKER = 2
 TOOL_FILL = 3
 TOOL_SELECT = 4
@@ -79,9 +77,15 @@ TOOL_LINE = 7
 TOOL_ELLIPSE = 8
 TOOL_POLYGON = 9
 TOOL_POLYLINE = 10
+TOOL_PENCIL1 = 11
+TOOL_PENCIL2 = 12
+TOOL_PENCIL3 = 13
+TOOL_ERASE1 = 14
+TOOL_ERASE2 = 15
+TOOL_ERASE3 = 16
 
 
 def data_path(path):
-    ps = os.getcwd() + '/.kivy/data/' + path
+    ps = os.getcwd() + '/data/' + path
     result = os.path.abspath(ps)
     return result

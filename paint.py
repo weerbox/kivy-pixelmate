@@ -159,14 +159,14 @@ class Paint(StencilView):
                     lb.layer.rect.pos = self.fbo_rect.pos
         self.ox, self.oy = self.bg_rect.pos
 
-    def fbo_render(self, touch=None):
+    def fbo_render(self, touch, width):
         self.fbo.bind()
         if touch and touch.ud.has_key('line'):
             with self.fbo:
                 self.fbo.add(self.app.aColor)
-                d = 1.
+                d = width
                 self.cursor_pos = ((touch.x - d / 2) / self.scale - self.fbo_rect.pos[0],
-                                  (touch.y - d / 2) / self.scale - self.fbo_rect.pos[1])
+                                   (touch.y - d / 2) / self.scale - self.fbo_rect.pos[1])
                 touch.ud['line'].points += self.cursor_pos
         self.fbo.release()
         self.fbo.draw()
@@ -193,7 +193,7 @@ class Paint(StencilView):
         improc.fillimage(self.fbo, (x, y), [int(255 * c) for c in self.app.aColor.rgb])
         self.canvas.ask_update()
 
-    def fbo_replace_color(self, touch):
+    def fbo_replace_color(self, touch, width):
         cx = int(touch.x / self.scale - self.fbo_rect.pos[0])
         cy = int(touch.y / self.scale - self.fbo_rect.pos[1])
         if self.px is None:
@@ -223,7 +223,7 @@ class Paint(StencilView):
                 coords = [(cx, cy), ]
         self.fbo.bind()
         for (x, y) in coords:
-            improc.texture_replace_color(tex=self.fbo.texture, pos=(x, y), color=0, size=(3, 3))
+            improc.texture_replace_color(tex=self.fbo.texture, pos=(x, y), color=0, size=(width, width))
         self.fbo.release()
         self.fbo.clear()
         self.fbo.draw()
@@ -233,27 +233,6 @@ class Paint(StencilView):
 
     def pos_to_widget(self, touch):
         return self.to_widget(touch.x, touch.y)
-
-    def add_touch(self, touch):
-        if touch and len(self.touches) < 2:
-            self.touches.append(touch)
-        if len(self.touches) >= 2:
-            self.touch_dist = self.touches[0].distance(self.touches[1])
-
-    def touch_responce(self):
-        result = False
-        if len(self.touches) >= 2:
-            pos1 = self.pos_to_widget(self.touches[0])
-            pos2 = self.touches[1].pos
-            dist = distance(pos1, pos2)
-            if dist > self.touch_dist + 5:
-                self.touch_dist = dist
-                result = 2
-            if dist <= self.touch_dist - 5:
-                self.touch_dist = dist
-                result = 1
-            return result
-        return False
 
     def scale_canvas(self, zoom):
         with self.canvas.before:
@@ -279,10 +258,37 @@ class Paint(StencilView):
         return [self.fbo_rect.texture.size[0] * self.scale,
                 self.fbo_rect.texture.size[1] * self.scale]
 
+    def add_touch(self, touch):
+        if touch and len(self.touches) < 2:
+            self.touches.append(touch)
+        if len(self.touches) >= 2:
+            self.touch_dist = self.touches[0].distance(self.touches[1])
+            self.touch_dist_const = self.touch_dist
+            self.first_touch = self.touches[0]
+
     def double_touch(self):
         if len(self.touches) > 1:
             return True
 
+    # def double_touch_distance(self):
+    #     return Vector(self.touches[0].pos).distance(self.touches[1].pos)
+
+    def touch_responce(self):
+        result = False
+        if len(self.touches) >= 2:
+            pos1 = self.pos_to_widget(self.touches[0])
+            pos2 = self.touches[1].pos
+            dist = distance(pos1, pos2)
+            if dist > self.touch_dist + 10:
+                self.touch_dist = dist
+                result = 2
+            elif dist <= self.touch_dist - 10:
+                self.touch_dist = dist
+                result = 1
+            if abs(self.touch_dist_const - dist) < 10:
+                result = 3
+            return result
+        return False
 
     def on_touch_down(self, touch):
         self.tool_buffer.on_touch_down(touch)
@@ -321,20 +327,45 @@ class Paint(StencilView):
             dialog.PopupMessage("Notification", "The current layer is locked, make it unlock for edit")
             return
 
-        if self.app.active_tool == TOOL_PENCIL:
+        if self.app.active_tool == TOOL_PENCIL1:
             self.fbo.bind()
             if touch:
                 with self.fbo:
                     self.fbo.add(self.app.aColor)
                     d = 1.
                     self.cursor_pos = ((touch.x - d / 2) / self.scale - self.fbo_rect.pos[0],
-                                      (touch.y - d / 2) / self.scale - self.fbo_rect.pos[1])
+                                       (touch.y - d / 2) / self.scale - self.fbo_rect.pos[1])
                     Ellipse(pos=self.cursor_pos, size=(d, d))
-                    touch.ud['line'] = Line(points=self.cursor_pos)
+                    touch.ud['line'] = Line(points=self.cursor_pos, width=d)
             self.fbo.release()
             self.fbo.draw()
             self.canvas.ask_update()
-
+        elif self.app.active_tool == TOOL_PENCIL2:
+            self.fbo.bind()
+            if touch:
+                with self.fbo:
+                    self.fbo.add(self.app.aColor)
+                    d = 2.1
+                    self.cursor_pos = ((touch.x - d / 2) / self.scale - self.fbo_rect.pos[0],
+                                       (touch.y - d / 2) / self.scale - self.fbo_rect.pos[1])
+                    Ellipse(pos=self.cursor_pos, size=(d, d))
+                    touch.ud['line'] = Line(points=self.cursor_pos, width=d / 2.0)
+            self.fbo.release()
+            self.fbo.draw()
+            self.canvas.ask_update()
+        elif self.app.active_tool == TOOL_PENCIL3:
+            self.fbo.bind()
+            if touch:
+                with self.fbo:
+                    self.fbo.add(self.app.aColor)
+                    d = 3.
+                    self.cursor_pos = ((touch.x - d / 2) / self.scale - self.fbo_rect.pos[0],
+                                       (touch.y - d / 2) / self.scale - self.fbo_rect.pos[1])
+                    Ellipse(pos=self.cursor_pos, size=(d, d))
+                    touch.ud['line'] = Line(points=self.cursor_pos, width=d / 2)
+            self.fbo.release()
+            self.fbo.draw()
+            self.canvas.ask_update()
         elif self.app.active_tool == TOOL_PICKER:
             if touch:
                 if self.collide_point(touch.x, touch.y):
@@ -345,10 +376,18 @@ class Paint(StencilView):
             if touch:
                 if self.collide_point(touch.x, touch.y):
                     self.fbo_fill_region(touch)
-        elif self.app.active_tool == TOOL_ERASE:
+        elif self.app.active_tool == TOOL_ERASE1:
             if touch:
                 if self.collide_point(touch.x, touch.y):
-                    self.fbo_replace_color(touch)
+                    self.fbo_replace_color(touch, width=1)
+        elif self.app.active_tool == TOOL_ERASE2:
+            if touch:
+                if self.collide_point(touch.x, touch.y):
+                    self.fbo_replace_color(touch, width=2)
+        elif self.app.active_tool == TOOL_ERASE3:
+            if touch:
+                if self.collide_point(touch.x, touch.y):
+                    self.fbo_replace_color(touch, width=3)
         elif self.app.active_tool == TOOL_SELECT:
             if touch:
                 if not self.tool_buffer.enabled:
@@ -385,21 +424,31 @@ class Paint(StencilView):
         elif result == 1:
             self.scale_canvas(0.98)
             return
-        if len(self.touches) > 1:
-            # self.do_undo()
-            return
+        elif result == 3:
+            dist = self.touches[0].distance(self.first_touch)
+            self.fbo_move_by_offset((dist / self.scale, dist / self.scale))
 
-        if self.app.active_tool == TOOL_PENCIL:
-            if self.app.dialog_state == self.app.state['root']:
-                self.fbo_render(touch)
+        if self.app.active_tool == TOOL_PENCIL1:
+            self.fbo_render(touch, width=1.)
+        elif self.app.active_tool == TOOL_PENCIL2:
+            self.fbo_render(touch, width=2.)
+        elif self.app.active_tool == TOOL_PENCIL3:
+            self.fbo_render(touch, width=3.)
         elif self.app.active_tool == TOOL_PICKER:
             c = self.fbo_get_pixel_color(touch)
             self.app.aColor = Color(c[0], c[1], c[2])
-        elif self.app.active_tool == TOOL_ERASE:
-            if self.app.dialog_state == self.app.state['root']:
-                if touch:
-                    if self.collide_point(touch.x, touch.y):
-                        self.fbo_replace_color(touch)
+        elif self.app.active_tool == TOOL_ERASE1:
+            if touch:
+                if self.collide_point(touch.x, touch.y):
+                    self.fbo_replace_color(touch, width=1)
+        elif self.app.active_tool == TOOL_ERASE2:
+            if touch:
+                if self.collide_point(touch.x, touch.y):
+                    self.fbo_replace_color(touch, width=2)
+        elif self.app.active_tool == TOOL_ERASE3:
+            if touch:
+                if self.collide_point(touch.x, touch.y):
+                    self.fbo_replace_color(touch, width=3)
         elif self.app.active_tool == TOOL_SELECT:
             if touch:
                 if not self.tool_buffer.enabled:
@@ -470,11 +519,14 @@ class Paint(StencilView):
             elif self.app.active_tool == TOOL_MOVE:
                 if touch:
                     self.move_image = False
-            elif self.app.active_tool == TOOL_ERASE:
+            elif self.app.active_tool == TOOL_ERASE1 or self.app.active_tool == TOOL_ERASE2 or self.app.active_tool == TOOL_ERASE3:
                 if touch:
                     self.px = None
                     self.py = None
-            if self.app.active_tool == TOOL_PENCIL or self.app.active_tool == TOOL_ERASE or self.app.active_tool == TOOL_FILL:
+            if self.app.active_tool == TOOL_PENCIL1 or self.app.active_tool == TOOL_ERASE1 \
+                    or self.app.active_tool == TOOL_PENCIL2 or self.app.active_tool == TOOL_ERASE2 \
+                    or self.app.active_tool == TOOL_PENCIL3 or self.app.active_tool == TOOL_ERASE3 \
+                    or self.app.active_tool == TOOL_FILL:
                 rect = self.app.layer_ribbon.get_active_layer().rect
                 pos = rect.pos[0] * self.scale, rect.pos[1] * self.scale
                 size = rect.size[0] * self.scale, rect.size[1] * self.scale
@@ -517,7 +569,6 @@ class Paint(StencilView):
 
         self.fbo_create(active_layer.texture.size, active_layer.texture)
 
-        print len(active_layer.textures_array)
         self.canvas_put_drawarea()
         self.fbo_update_pos()
         self.canvas.ask_update()

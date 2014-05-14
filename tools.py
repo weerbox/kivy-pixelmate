@@ -33,10 +33,16 @@ class BarBubble(Bubble):
         self.orientation = 'horizontal'
         self.show_arrow = False
         self.layout = layout
+        self.but_list = []
 
     def add_button(self, text, callback):
+        self.but_list.append(BubbleButton(text=text, on_press=partial(self.button_callback, callback)))
+        self.add_widget(self.but_list[-1])
 
-        self.add_widget(BubbleButton(text=text, on_press=partial(self.button_callback, callback)))
+    def disable_button(self, text, state):
+        for but in self.but_list:
+            if but.text == text:
+                but.disabled = state
 
     def button_callback(self, callback, *args):
         callback()
@@ -64,74 +70,12 @@ class BarBubble(Bubble):
         return self in touch.ud
 
     def show(self):
-        self.layout.add_widget(self)
+        if self not in self.layout.children:
+            self.layout.add_widget(self)
 
     def hide(self):
         if self in self.layout.children:
             self.layout.remove_widget(self)
-
-
-class ContextBubble(Bubble):
-    callbacks = {}
-
-    @staticmethod
-    def set_callback(key, function):
-        if callable(function):
-            ContextBubble.callbacks[key] = function
-        else:
-            raise NameError('function not callable')
-
-    def __init__(self, **kwargs):
-        Bubble.__init__(self, **kwargs)
-        self.size_hint = (None, None)
-        self.size = (Window.size[0] * 0.13, Window.size[1] * 0.08 * 4)
-        self.orientation = 'vertical'
-        self.arrow_pos = 'bottom_left'
-        self.add_widget(BubbleButton(text='Copy', on_press=self.on_children_press))
-        self.add_widget(BubbleButton(text='Cut', on_press=self.on_children_press))
-        self.add_widget(BubbleButton(text='Paste', on_press=self.on_children_press))
-        self.add_widget(BubbleButton(text='Delete', on_press=self.on_children_press))
-
-    def on_touch_down(self, touch):
-        if super(ContextBubble, self).on_touch_down(touch):
-            return True
-
-        if touch.is_mouse_scrolling:
-            return False
-        if not self.collide_point(touch.x, touch.y):
-            return False
-        if self in touch.ud:
-            return False
-        touch.ud[self] = True
-        if self.collide_point(*touch.pos):
-            self.pressed = touch.pos
-            return True
-        return True
-
-    def on_touch_move(self, touch):
-        if super(ContextBubble, self).on_touch_move(touch):
-            return True
-        return self in touch.ud
-
-    def on_children_press(self, bbutton):
-        if bbutton.text == 'Copy':
-            self._check_and_call('copy')
-        elif bbutton.text == 'Cut':
-            self._check_and_call('cut')
-        elif bbutton.text == 'Paste':
-            self._check_and_call('paste')
-        elif bbutton.text == 'Delete':
-            self._check_and_call('delete')
-        self.parent.remove_widget(self)
-
-    def _check_and_call(self, key):
-        if ContextBubble.callbacks.has_key(key):
-            if callable(ContextBubble.callbacks[key]):
-                ContextBubble.callbacks[key]()
-            else:
-                raise NameError('callback function ' + key + ' not callable')
-        else:
-            raise NameError(key + ' callback not defined')
 
 
 class VertexTool():
@@ -490,6 +434,10 @@ class SelectTool(VertexTool):
             self._add_graphics_rounds()
             self._add_graphics_rect()
         if self.state == 'edit':
+            if self.app.aPaint.tool_buffer.is_empty():
+                self.context_menu.disable_button('paste', True)
+            else:
+                self.context_menu.disable_button('paste', False)
             self.context_menu.show()
         self.catched_round = None
         self.catched_line = False
@@ -542,7 +490,7 @@ class SelectTool(VertexTool):
         translated_size = [int(size[0] / self.app.aPaint.scale), int(size[1] / self.app.aPaint.scale)]
         pos1 = self.get_selection_pos()
         pos2 = self.get_selection_reverse_pos()
-        rsize = [pos2[0]-pos1[0], pos2[1]-pos1[1]]
+        rsize = [pos2[0] - pos1[0], pos2[1] - pos1[1]]
         return rsize
 
     def get_selection_pos(self):
@@ -585,7 +533,7 @@ class SelectTool(VertexTool):
     def selection_del(self):
         x, y = self.get_selection_pos()
         w, h = self.get_selection_size()
-        print x, y, w, h, ' - ', self.app.aPaint.fbo_rect.pos, self.app.aPaint.fbo_rect.size
+
         self.app.aPaint.fbo.bind()
         improc.texture_replace_color(tex=self.app.aPaint.fbo.texture, pos=(x, y), color=0, size=(w, h))
         self.app.aPaint.fbo.release()
@@ -597,7 +545,8 @@ class SelectTool(VertexTool):
         self._reset_state(self.fbo)
 
         self.app.aPaint.tool_buffer.enable(self.app.aPaint.fbo,
-                                           pos=(self.app.aPaint.fbo_rect.size[0]/2, self.app.aPaint.fbo_rect.size[1]/2))
+                                           pos=(
+                                           self.app.aPaint.fbo_rect.size[0] / 2, self.app.aPaint.fbo_rect.size[1] / 2))
         self.app.aPaint.canvas_put_drawarea()
 
     def selection_cut(self):
@@ -638,6 +587,11 @@ class BufferTool(ToolBehavior):
         self.enabled = False
         self.menu.hide()
 
+    def is_empty(self):
+        if self.texture:
+            return False
+        return True
+
     def put_on_fbo(self):
         self.enabled = False
         self.menu.hide()
@@ -645,11 +599,12 @@ class BufferTool(ToolBehavior):
             self.on_render_callback()
 
     def _create_rect(self, fbo, pos):
-        with fbo:
-            Color(1, 1, 1, 1)
-            self.pos = pos
-            self.size = self.texture.size
-            self.rect = Rectangle(pos=self.pos, texture=self.texture, size=self.texture.size)
+        if self.texture:
+            with fbo:
+                Color(1, 1, 1, 1)
+                self.pos = pos
+                self.size = self.texture.size
+                self.rect = Rectangle(pos=self.pos, texture=self.texture, size=self.texture.size)
 
     def _add_graphics(self, fbo):
         fbo.bind()

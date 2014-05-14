@@ -121,14 +121,13 @@ class Layer(Widget):
             Layer.layer_bg_texture.min_filter = 'nearest'
             Layer.layer_bg_texture.wrap = 'repeat'
         Layer.layer_bg_rect = Rectangle(texture=Layer.layer_bg_texture, pos=(0, 0), size=size)
-        nb_repeat_x = size[0] / 8
-        nb_repeat_y = size[1] / 8
-        t = 0
+        nb_repeat_x = size[0] / 4
+        nb_repeat_y = size[1] / 4
         Layer.layer_bg_rect.tex_coords = (
-            -(t * 0.001), 0,
-            -(t * 0.001 + nb_repeat_x), 0,
-            -(t * 0.001 + nb_repeat_x), -nb_repeat_y,
-            -(t * 0.001), -nb_repeat_y
+            0, 0,
+            - nb_repeat_x, 0,
+            - nb_repeat_x, -nb_repeat_y,
+            0, -nb_repeat_y
         )
         return Layer.layer_bg_rect
 
@@ -158,6 +157,12 @@ class Layer(Widget):
         self.texture = texture
         self.rect = self._create_textured_rect(texture)
         self.put_texture_on_canvas(texture)
+
+    def recreate_texture(self, texture):
+        self.texture = improc.texture_copy(texture, smooth=False)
+        self.rect = self._create_textured_rect(self.texture)
+        self.put_texture_on_canvas(self.texture)
+        return self.texture
 
     def put_rects_on_canvas(self):
         self.canvas.clear()

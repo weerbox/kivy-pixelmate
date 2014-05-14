@@ -93,7 +93,10 @@ class OpenImage():
         self.title = "Open Image: "
         self.callback = callback
         self.app = App.get_running_app()
-        self.def_path = self.app.config.get('filechooser', 'open_path')
+        # self.def_path = self.app.config.get('filechooser', 'open_path')
+        self.def_path = self.app.config.getdefault('filechooser', 'open_path', DEF_PATH)
+        if self.def_path == '':
+            self.def_path = DEF_PATH
         self.content = OpenDialog(load=self._load, filters=self.filters, cancel=self._dismiss,
                                   get_texture=self._get_texture)
         self.content.chooser.path = os.path.abspath(self.def_path)
@@ -116,6 +119,7 @@ class OpenImage():
 
     def _get_texture(self, filename):
         ext = '*' + splitext(filename)[1]
+        # print filename
         if ext in self.filters:
             if ext == '*.pixelmate':
                 return improc.merged_texture_from_zip(filename)
@@ -126,7 +130,10 @@ class OpenImage():
 class SaveBase():
     def __init__(self, callback):
         self.callback = callback
-        self.def_path = unicode(DEF_PATH)
+        self.app = App.get_running_app()
+        self.def_path = self.app.config.getdefault('filechooser', 'save_path', DEF_PATH)
+        if self.def_path == '':
+            self.def_path = DEF_PATH
         self.content = SaveDialog(save=self._save, cancel=self._dismiss, filters=self.filters, formats=self.formats,
                                   set_format=self._set_format, get_texture=self._get_texture)
         self.content.chooser.path = self.def_path
@@ -140,7 +147,6 @@ class SaveBase():
 
     def _set_format(self, spinner, format):
         self.format = format
-        print format
 
     def _set_title(self, chooser, path):
         self._popup.title = self.title + os.path.normpath(path)

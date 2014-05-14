@@ -124,7 +124,6 @@ def widget_save_canvas(widget, filename, format):
     fbo.release()
     im = PILImage.fromstring('RGBA', size, data)
     im = im.transpose(PILImage.FLIP_TOP_BOTTOM)
-    print filename
     im.save(filename, format)
     if parent:
         parent.add_widget(widget)

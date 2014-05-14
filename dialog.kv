@@ -12,7 +12,7 @@
             FileChooserIconView:
                 id: file_chooser
                 filters: root.filters
-                on_selection: image.texture = root.get_texture(self.selection[0])
+                on_selection: image.texture = root.get_texture(self.selection and self.selection[0] or '')
             BoxLayout:
                 size_hint_x: 0.44
                 orientation: "vertical"
@@ -46,7 +46,7 @@
             FileChooserIconView:
                 id: file_chooser
                 filters: root.filters
-                on_selection: image.texture = root.get_texture(self.selection[0])
+                on_selection: image.texture = root.get_texture(self.selection and self.selection[0] or '')
             BoxLayout:
                 size_hint_x: 0.44
                 orientation: "vertical"
@@ -96,7 +96,6 @@
                 orientation: "vertical"
                 NumInput:
                     id: input_w
-                    font_size: 15
                     pos_hint: {'center_x':.5, 'center_y':.5}
                     hint_text: 'width'
                     multiline: False

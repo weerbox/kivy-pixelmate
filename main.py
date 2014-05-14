@@ -1,4 +1,5 @@
 import kivy
+
 kivy.require('1.8.0')
 from kivy.config import Config
 
@@ -6,7 +7,6 @@ Config.set('graphics', 'width', '800')
 Config.set('graphics', 'height', '480')
 
 from os.path import splitext
-
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -15,9 +15,11 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.settings import SettingsWithSidebar
 from kivy.core.image import Image
 from kivy.graphics import Color
+from kivy.config import ConfigParser
 
 from globals import *
-from improc import texture_save, texture_replace_data, texture_flip, textures_list_save_to_zip, textures_list_from_zip
+from improc import texture_save, texture_replace_data, \
+    texture_flip, textures_list_save_to_zip, textures_list_from_zip
 from option import Options
 from paint import Paint
 import dialog
@@ -58,27 +60,19 @@ class PM(App):
         self.button_menu = None
 
     def post_build_init(self, ev):
-        if platform() == 'android':
-            import android
+        Window.bind(on_keyboard=self.back_button_handler)
+        # self.toolbar.tools_select(TOOL_PENCIL1)
+        self.active_tool = self.toolbar.tool_menu.tool = TOOL_PENCIL1
+        self.toolbar.tool_menu_pen.hide()
 
-            android.map_key(android.KEYCODE_BACK, 1001)
-        win = self._app_window
-        self.toolbar.tools_select(TOOL_PENCIL)
         self.aPaint.refbo()
-
-        # self.layer_ribbon._add_layer(texture_size=DEFAULT_IMAGE_SIZE)
-        # self.layer_ribbon.activate(0)
-
         self.layer_add(texture_size=DEFAULT_IMAGE_SIZE)
 
-    def _key_handler(self, window, *largs):
-        key = largs[0]
-        if platform() == 'android':
-            if key == 1001:
-                self.action_key_back()
-        if platform() == 'win':
-            if key == KEY_ESCAPE:
-                self.action_key_back()
+    def back_button_handler(self, window, key, *largs):
+        if key == 27:
+            self.backbutton_action()
+            return True
+
 
     def update(self):
         self.aPaint.canvas_put_drawarea()
@@ -91,7 +85,7 @@ class PM(App):
         return True
 
     def open_settings(self, *largs):
-        self.dialog_state = self.state['dialog_open']
+        self.dialog_state = self.state['settings']
         super(PM, self).open_settings()
 
     def close_settings(self, *largs):
@@ -109,8 +103,7 @@ class PM(App):
         config.setdefaults('toolbars', {'toolbar_autohide': '1'})
         config.setdefaults('toolbars', {'palette_autohide': '1'})
         config.setdefaults('toolbars', {'layer_ribbon_autohide': '1'})
-
-        config.setdefaults('editor', {'tools_touch_point_size': '60'})
+        config.setdefaults('editor', {'tools_touch_point_size': '70'})
         config.setdefaults('misc', {'exitconfirm': '1'})
         config.setdefaults('misc', {'layer_delete_confirm': '1'})
         config.setdefaults('misc', {'layer_merge_confirm': '1'})
@@ -135,6 +128,12 @@ class PM(App):
 
     def save_config(self):
         pass
+        parser = ConfigParser()
+        parser.read('pm.ini')
+        parser.adddefaultsection('filechooser')
+        parser.set('filechooser', 'open_path', self.open_dialog.content.chooser.path)
+        parser.set('filechooser', 'project_save_path', self.project_save_dialog.content.chooser.path)
+        parser.set('filechooser', 'image_save_path', self.image_save_dialog.content.chooser.path)
 
     def build_tools(self):
         self.aPaint.tool_select = tools.SelectTool(app=self)
@@ -162,9 +161,12 @@ class PM(App):
     def hide_tool_menu(self):
         self.root.remove_widget(self.tool_menu)
 
-    def action_key_back(self):
+    def backbutton_action(self):
         if self.dialog_state == self.state['root']:
             self.dialog_exit()
+        elif self.dialog_state == self.state['settings']:
+            self.close_settings()
+
 
     def image_new(self, size):
         self.layer_ribbon.remove_all_layers()
@@ -197,9 +199,10 @@ class PM(App):
                 texture_flip(image.texture)
                 layer_box = self.layer_ribbon.new_layer(image.texture.size)
                 layer_box.set_active()
-                layer_box.layer.replace_texture(image.texture)
-                self.aPaint.canvas_put_drawarea(texture=image.texture)
+                texture = layer_box.layer.recreate_texture(texture=image.texture)
+                self.aPaint.canvas_put_drawarea(texture=texture)
                 self.aPaint.scale_canvas(zoom=1 / self.aPaint.scale)
+                self.aPaint.canvas_put_drawarea()
             except Exception, e:
                 print e
 
@@ -219,7 +222,6 @@ class PM(App):
         self.layer_ribbon._add_layer(texture_size=texture_size)
         self.layer_ribbon.activate(len(layer.LayerBox.boxlist) - 1)
         self.aPaint.fbo_update_pos()
-        # print self.layer_ribbon.get_active_layer()
         self.aPaint.add_undo_stack()
 
     def layer_add_same_as_layerbox(self, layer_box):
@@ -353,7 +355,7 @@ class PM(App):
 
 
 if __name__ == '__main__':
-    Window.clearcolor = (0.7, 0.7, 0.7, 1)
+    Window.clearcolor = (0.65, 0.75, 0.85, 1)
     Window.clear()
     app = PM()
     app.run()
