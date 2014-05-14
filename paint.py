@@ -4,7 +4,7 @@ from kivy.uix.stencilview import StencilView
 from kivy.graphics import Color, Rectangle, Ellipse, Line
 from kivy.graphics.fbo import Fbo
 from kivy.graphics.texture import Texture
-from kivy.graphics.opengl import glReadPixels, GL_RGB, GL_UNSIGNED_BYTE
+from kivy.graphics.opengl import glReadPixels, GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE
 from kivy.graphics import PushMatrix, PopMatrix
 from kivy.graphics import context_instructions
 from kivy.vector import Vector
@@ -179,7 +179,7 @@ class Paint(StencilView):
         self.fbo.bind()
         x = touch.x / self.scale - self.fbo_rect.pos[0]
         y = touch.y / self.scale - self.fbo_rect.pos[1]
-        data = glReadPixels(x, y, 1, 1, GL_RGB, GL_UNSIGNED_BYTE)
+        data = glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE)
         self.fbo.release()
         if format == '1':
             c = [ord(a) / 255.0 for a in data]
@@ -370,7 +370,7 @@ class Paint(StencilView):
             if touch:
                 if self.collide_point(touch.x, touch.y):
                     c = self.fbo_get_pixel_color(touch)
-                    self.app.aColor = Color(c[0], c[1], c[2])
+                    self.app.aColor = Color(c[0], c[1], c[2], c[3])
                     self.app.toolbar.tools_select(self.app.prev_tool)
         elif self.app.active_tool == TOOL_FILL:
             if touch:
