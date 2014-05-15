@@ -157,8 +157,8 @@ class Paint(StencilView):
             for lb in layer.LayerBox.boxlist:
                 if lb.layer.rect:
                     lb.layer.rect.pos = self.fbo_rect.pos
-        self.ox, self.oy = self.bg_rect.pos
-
+        # self.ox, self.oy = self.bg_rect.pos
+    #
     def fbo_render(self, touch, width):
         self.fbo.bind()
         if touch and touch.ud.has_key('line'):

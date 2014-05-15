@@ -35,7 +35,12 @@ def toolbar_on_touch():
             app.aPaint.tool_ellipse._render_and_reset_state(app.aPaint.fbo, app.aPaint.tool_fbo)
             app.aPaint.fbo.draw()
             app.aPaint.canvas.ask_update()
-
+    if app.active_tool == TOOL_SELECT:
+        if app.aPaint.tool_select.state is not None:
+            app.aPaint.tool_select._reset_state(app.aPaint.tool_fbo)
+            app.aPaint.tool_select.context_menu.hide()
+            app.aPaint.fbo.draw()
+            app.aPaint.canvas.ask_update()
 
 class ToolButton(Button):
     pressed = ListProperty([0, 0])

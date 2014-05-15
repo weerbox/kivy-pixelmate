@@ -615,12 +615,14 @@ class BufferTool(ToolBehavior):
         self.canvas.ask_update()
 
     def _remove_graphics(self, fbo):
+
         fbo.bind()
         fbo.clear_buffer()
         if self.rect in fbo.children:
             fbo.remove(self.rect)
         fbo.release()
         fbo.draw()
+
 
     def get_from_texture(self, tetxure, pos, size):
         x, y = pos
