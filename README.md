@@ -22,4 +22,7 @@ Packaging for device
 
 License
 
-    GPL 2 
+    GPL 2
+
+TIP
+    Use long tap on the color cell to open a color selection dialog
