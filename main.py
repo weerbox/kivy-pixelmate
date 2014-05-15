@@ -19,7 +19,7 @@ from kivy.config import ConfigParser
 
 from globals import *
 from improc import texture_save, texture_replace_data, \
-    texture_flip, textures_list_save_to_zip, textures_list_from_zip
+    texture_flip, textures_list_save_to_zip, textures_list_from_zip, texture_copy
 from option import Options
 from paint import Paint
 import dialog
@@ -31,9 +31,7 @@ import ui
 class PM(App):
     scrollView = None
     aPaint = None
-    state = {
-        'root': 0, 'menu': 1, 'settings': 2, 'dialog_save': 3, 'dialog_open': 4, 'dialog_new': 5, 'dialog_color': 6
-    }
+
 
     def __init__(self):
         App.__init__(self)
@@ -43,7 +41,7 @@ class PM(App):
             self.use_kivy_settings = True
         else:
             self.use_kivy_settings = False
-        self.dialog_state = PM.state['root']
+        self.dialog_state = STATE_ROOT
         self.layer_dialog_enabled = False
         self.layer_ribbon = None
         self.prev_tool = 0
@@ -73,28 +71,27 @@ class PM(App):
             self.backbutton_action()
             return True
 
-
     def update(self):
         self.aPaint.canvas_put_drawarea()
         self.layer_ribbon.put_rects_on_canvas()
 
     def on_stop(self):
-        self.dialog_exit()
+        self.on_dialog_exit()
 
     def on_pause(self):
         return True
 
     def open_settings(self, *largs):
-        self.dialog_state = self.state['settings']
+        self.dialog_state = STATE_SETTINGS
         super(PM, self).open_settings()
 
     def close_settings(self, *largs):
-        self.dialog_state = self.state['root']
+        self.dialog_state = STATE_ROOT
         super(PM, self).close_settings()
 
     def on_config_change(self, config, section, key, value):
-        tools.SelectTool.on_setting_change()
-        tools.LineTool.on_setting_change()
+        tools.VertexTool.on_setting_change()
+
 
     def build_settings(self, settings):
         opt = Options(self.config, settings)
@@ -103,7 +100,7 @@ class PM(App):
         config.setdefaults('toolbars', {'toolbar_autohide': '1'})
         config.setdefaults('toolbars', {'palette_autohide': '1'})
         config.setdefaults('toolbars', {'layer_ribbon_autohide': '1'})
-        config.setdefaults('editor', {'tools_touch_point_size': '70'})
+        config.setdefaults('editor', {'tools_touch_point_size': '50'})
         config.setdefaults('misc', {'exitconfirm': '1'})
         config.setdefaults('misc', {'layer_delete_confirm': '1'})
         config.setdefaults('misc', {'layer_merge_confirm': '1'})
@@ -113,16 +110,14 @@ class PM(App):
 
     def read_config(self):
         config = self.config
+        tools.VertexTool.on_setting_change()
 
-    def dialog_exit(self, *args):
-        def exit_callback(answer):
-            if answer == "yes":
-                sys.exit()
 
+    def on_dialog_exit(self, *args):
+        self.dialog_state = STATE_DIALOG_EXIT
         self.save_config()
-
         if self.config.getint('misc', 'exitconfirm'):
-            dl = dialog.ConfirmDialog("Exit", "Exit app?", exit_callback)
+            self.dialog_exit.show()
         else:
             sys.exit()
 
@@ -162,11 +157,13 @@ class PM(App):
         self.root.remove_widget(self.tool_menu)
 
     def backbutton_action(self):
-        if self.dialog_state == self.state['root']:
-            self.dialog_exit()
-        elif self.dialog_state == self.state['settings']:
+        if self.dialog_state == STATE_ROOT:
+            self.on_dialog_exit()
+        elif self.dialog_state == STATE_DIALOG_EXIT:
+            self.dialog_exit.close()
+            self.dialog_state = STATE_ROOT
+        elif self.dialog_state == STATE_SETTINGS:
             self.close_settings()
-
 
     def image_new(self, size):
         self.layer_ribbon.remove_all_layers()
@@ -197,9 +194,10 @@ class PM(App):
                 self.layer_ribbon.remove_all_layers()
                 image.texture.flip_vertical()
                 texture_flip(image.texture)
-                layer_box = self.layer_ribbon.new_layer(image.texture.size)
+                tex = texture_copy(image.texture)
+                layer_box = self.layer_ribbon.new_layer(tex.size)
                 layer_box.set_active()
-                texture = layer_box.layer.recreate_texture(texture=image.texture)
+                texture = layer_box.layer.recreate_texture(texture=tex)
                 self.aPaint.canvas_put_drawarea(texture=texture)
                 self.aPaint.scale_canvas(zoom=1 / self.aPaint.scale)
                 self.aPaint.canvas_put_drawarea()
@@ -301,6 +299,12 @@ class PM(App):
 
     def build(self):
         self.read_config()
+
+        def exit_callback(answer):
+            if answer == "yes":
+                sys.exit()
+
+        self.dialog_exit = dialog.ConfirmDialog2("Exit", "Exit app?", exit_callback)
         self.new_dialog = dialog.NewImage(callback=self.image_new)
         self.open_dialog = dialog.OpenImage(callback=self.image_open)
         self.image_save_dialog = dialog.SaveImage(callback=self.image_save)
@@ -309,7 +313,7 @@ class PM(App):
         self.main_menu = ui.Menu(new_clbk=self.new_dialog.open, open_clbk=self.open_dialog.open,
                                  save_project_clbk=self.project_save_dialog.open,
                                  save_image_clbk=self.image_save_dialog.open,
-                                 options_clbk=self.open_settings, exit_clbk=self.dialog_exit)
+                                 options_clbk=self.open_settings, exit_clbk=self.on_dialog_exit)
         self.aColor = Color(0, 0, 0, 255)
         self.root = FloatLayout(size=(Window.width, Window.height))
         PM.aPaint = Paint(self, size=DRAWAREA_SIZE)

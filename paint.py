@@ -4,7 +4,7 @@ from kivy.uix.stencilview import StencilView
 from kivy.graphics import Color, Rectangle, Ellipse, Line
 from kivy.graphics.fbo import Fbo
 from kivy.graphics.texture import Texture
-from kivy.graphics.opengl import glReadPixels, GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE
+from kivy.graphics.opengl import glReadPixels, GL_RGBA, GL_UNSIGNED_BYTE
 from kivy.graphics import PushMatrix, PopMatrix
 from kivy.graphics import context_instructions
 from kivy.vector import Vector
@@ -190,7 +190,7 @@ class Paint(StencilView):
     def fbo_fill_region(self, touch):
         x = int(touch.x / self.scale - self.fbo_rect.pos[0])
         y = int(touch.y / self.scale - self.fbo_rect.pos[1])
-        improc.fillimage(self.fbo, (x, y), [int(255 * c) for c in self.app.aColor.rgb])
+        improc.fillimage(self.fbo, (x, y), [int(255 * c) for c in self.app.aColor.rgba])
         self.canvas.ask_update()
 
     def fbo_replace_color(self, touch, width):
@@ -544,7 +544,6 @@ class Paint(StencilView):
         self.layer_undo_stack = self.layer_undo_stack[:self.undo_layer_index + 1]
         self.layer_undo_stack.append(_active_layer)
         self.undo_layer_index = len(self.layer_undo_stack) - 1
-        print 'add to undo stack'
 
     def do_undo(self, *args):
         if self.layer_undo_stack:

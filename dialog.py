@@ -283,6 +283,28 @@ class ConfirmDialog():
         self.popup.dismiss()
 
 
+class ConfirmDialog2():
+    def __init__(self, title, text, callback):
+        self.callback = callback
+        content = AskPopupContent(text=text)
+
+        content.on_answer = self._on_answer
+        self.popup = Popup(title=title,
+                           content=content,
+                           size_hint=(0.4, 0.3),
+                           auto_dismiss=False)
+
+    def _on_answer(self, answer):
+        self.callback(answer)
+        self.popup.dismiss()
+
+    def close(self):
+        self.popup.dismiss()
+
+    def show(self):
+        self.popup.open()
+
+
 class PopupMessage():
     def __init__(self, title, text, callback=None):
         self.callback = callback
@@ -326,16 +348,16 @@ class ColorPickerDialog:
             self.colorPicker.color = color
         if callable(on_close):
             self.on_close_clbk = on_close
-        self.app.dialog_state = self.app.state['dialog_color']
+        self.app.dialog_state = STATE_DIALOG_COLOR
         self.popup_picker.open()
 
     def on_dismiss(self, *args):
-        self.app.dialog_state = self.app.state['root']
+        self.app.dialog_state = STATE_ROOT
 
     def close(self, *args):
         self.on_close()
         self.popup_picker.dismiss()
-        self.app.dialog_state = self.app.state['root']
+        self.app.dialog_state = STATE_ROOT
 
     def on_close(self, *args):
         if callable(self.on_close_clbk):

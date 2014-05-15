@@ -151,6 +151,8 @@ class Layer(Widget):
     def _create_textured_rect(self, texture):
         Layer.create_bg_rect(size=texture.size)
         self.rect = Rectangle(texture=texture, pos=(0, 0), size=texture.size)
+        # self.rect.tex_coords = (0, 1, 1, 1, 1, 0, 0, 0)
+        # print self.rect.tex_coords
         return self.rect
 
     def replace_texture(self, texture):

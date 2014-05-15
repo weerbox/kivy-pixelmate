@@ -39,6 +39,16 @@ def texture_flip(texture):
     return texture
 
 
+def load_texture(path):
+    image = PILImage.open(path)
+    string = image.tostring()
+    texture = Texture.create(size=image.size, colorfmt='rgba')
+    texture.mag_filter = 'nearest'
+    texture.min_filter = 'nearest'
+    texture.blit_buffer(string, colorfmt='rgba', bufferfmt='ubyte')
+    return texture
+
+
 def texture_save(texture, filename, format=None):
     size = texture.size
     fbo = Fbo(size=texture.size, texture=texture)

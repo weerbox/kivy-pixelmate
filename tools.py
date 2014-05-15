@@ -79,7 +79,7 @@ class BarBubble(Bubble):
 
 
 class VertexTool():
-    app = None
+    app = APP()
     item_list = []
     round_width = 40
 
@@ -91,7 +91,7 @@ class VertexTool():
 
     @classmethod
     def on_setting_change(cls):
-        cls.round_width = cls.app.config.getint('editor', 'tools_touch_point_size')
+        cls.round_width = APP().config.getint('editor', 'tools_touch_point_size')
         cls.update_graphics()
 
     def __init__(self, app):
@@ -546,7 +546,8 @@ class SelectTool(VertexTool):
 
         self.app.aPaint.tool_buffer.enable(self.app.aPaint.fbo,
                                            pos=(
-                                           self.app.aPaint.fbo_rect.size[0] / 2, self.app.aPaint.fbo_rect.size[1] / 2))
+                                               self.app.aPaint.fbo_rect.size[0] / 2,
+                                               self.app.aPaint.fbo_rect.size[1] / 2))
         self.app.aPaint.canvas_put_drawarea()
 
     def selection_cut(self):
@@ -652,7 +653,6 @@ class BufferTool(ToolBehavior):
 
     def collide_point(self, pos):
         x, y = self.app.aPaint.scale_pos(pos)
-        print self.pos
         if self.pos[0] < x < self.pos[0] + self.size[0] and self.pos[1] < y < self.pos[1] + self.size[1]:
             return True
         return False

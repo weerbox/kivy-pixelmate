@@ -100,7 +100,6 @@ class ToolToggleButton(ToggleButton):
         return True
 
     def on_pressed(self, instance, pos):
-        # print ('pressed at {pos}'.format(pos=pos))
         pass
 
 
@@ -108,10 +107,13 @@ class MenuButton(ToolToggleButton):
     def __init__(self, **kwargs):
         super(MenuButton, self).__init__(**kwargs)
         self.sub_item = None
+        self.callback = None
 
     def _do_press(self):
         self._release_group(self)
-        self.state = 'down' if self.state == 'down' else 'down'
+        self.state = 'down'
+        # if callable(self.callback):
+        #     self.callback()
 
 
 class PaletteToggleButton(ToolToggleButton, TapAndHoldWidget):
@@ -238,6 +240,7 @@ class Toolbar(RelativeLayout):
         self.size_hint = TOOLBAR_LAYOUT_SIZE_HINT
         self.pos = (TOOLBAR_LAYOUT_POS_HINT[0] * Window.width, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
         self.add_popup_menus()
+        # self.btn_figs.callback = self.tool_menu.show
         self.remove_widget(self.tool_menu)
         self.remove_widget(self.tool_menu_pen)
         self.remove_widget(self.tool_menu_eraser)
@@ -463,11 +466,6 @@ class Toolbar(RelativeLayout):
         elif tool == TOOL_RECT:
             self.btn_rect._do_press()
             self.tools_on_button_press(self.btn_rect)
-
-
-    def hide_tool_menu(self, *args):
-        if self.tool_menu in self.children:
-            self.remove_widget(self.tool_menu)
 
     def animate_hide(self, *args):
         if not self.hidden:
