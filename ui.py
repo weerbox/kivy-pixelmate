@@ -246,6 +246,11 @@ class Toolbar(RelativeLayout):
         self.pos = (TOOLBAR_LAYOUT_POS_HINT[0] * Window.width, TOOLBAR_LAYOUT_POS_HINT[1] * Window.height + 1)
         self.add_popup_menus()
         # self.btn_figs.callback = self.tool_menu.show
+
+        self.tool_menu.tool = TOOL_LINE
+        self.tool_menu_pen.tool = TOOL_PENCIL1
+        self.tool_menu_eraser.tool = TOOL_ERASE1
+
         self.remove_widget(self.tool_menu)
         self.remove_widget(self.tool_menu_pen)
         self.remove_widget(self.tool_menu_eraser)
@@ -404,11 +409,11 @@ class Toolbar(RelativeLayout):
             if button.tool == 'pencil':
                 # self.app.active_tool = TOOL_PENCIL
                 self.tool_menu_pen.show()
-                self.app.active_tool = self.tool_menu.tool
+                self.app.active_tool = self.tool_menu_pen.tool
             if button.tool == 'erase':
                 # self.app.active_tool = TOOL_ERASE
                 self.tool_menu_eraser.show()
-                self.app.active_tool = self.tool_menu.tool
+                self.app.active_tool = self.tool_menu_eraser.tool
             if button.tool == 'picker':
                 self.app.active_tool = TOOL_PICKER
             if button.tool == 'fill':
