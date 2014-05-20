@@ -291,6 +291,11 @@ class Toolbar(RelativeLayout):
         }
         self.btn_show_toolbar.state = 'down'
 
+
+        with self.canvas.before:
+            Color(0.2, 0.2, 0.2, 1)
+            layout_rect = Rectangle(pos=(0, 0), size=(TOOLBAR_LAYOUT_SIZE_HINT[0]*WIN_WIDTH, TOOLBAR_LAYOUT_SIZE_HINT[1]*WIN_HEIGHT))
+
     def add_popup_menus(self):
         self.tool_menu.add_button(text='line', background_normal=data_path('line.png'),
                                   background_down=data_path('line_down.png'),
@@ -380,14 +385,14 @@ class Toolbar(RelativeLayout):
             self.tool_menu_pen.tool = TOOL_PENCIL3
             self.tool_menu_pen.select()
 
-    def on_size(self, *args):
-        if self.cover_layout:
-            with self.cover_layout.canvas.after:
-                Color(0, 0, 0, 0.7)
-                Line(rectangle=(0, 0, self.width / 2, self.height))
-                for t in xrange(1, 7):
-                    Line(rectangle=(0, 0, self.width, self.height * t / 6))
-            self.canvas.ask_update()
+    # def on_size(self, *args):
+    #     if self.cover_layout:
+    #         with self.cover_layout.canvas.after:
+    #             Color(0, 0, 0, 0.7)
+    #             Line(rectangle=(0, 0, self.width / 2, self.height))
+    #             for t in xrange(1, 7):
+    #                 Line(rectangle=(0, 0, self.width, self.height * t / 6))
+    #         self.canvas.ask_update()
 
     def on_touch_down(self, touch, *args):
         if self.collide_point(touch.x, touch.y):

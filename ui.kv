@@ -11,9 +11,13 @@
     btn_figs: button_figs.__self__
     BoxLayout:
         id: box_layout
+        padding: (1, 1, 1, 1)
+        spacing: 1
         orientation: 'horizontal'
         BoxLayout:
             orientation: 'vertical'
+            spacing: 1
+            #padding: (1, 1, 1, 1)
             MenuButton:
                 id: button_eraser
                 tool: 'erase'
@@ -63,6 +67,7 @@
                 on_press: root.tools_on_button_press(self)
         BoxLayout:
             orientation: 'vertical'
+            spacing: 1
             MenuButton:
                 id: button_pen
                 tool: 'pencil'

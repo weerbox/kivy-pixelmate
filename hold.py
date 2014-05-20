@@ -33,6 +33,7 @@ class TapAndHoldWidget(Widget):
             self._release_event()
 
     def on_touch_down(self, touch):
+        super(TapAndHoldWidget, self).on_touch_down(touch)
         ''' touch down event '''
         if self.collide_point(touch.x, touch.y):  # filter touch events
             self.triggered = False

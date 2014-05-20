@@ -13,7 +13,7 @@ class Options():
         self.config = config
         self.settings_panel.add_json_panel('Interface', self.config, 'option.json')
         panel = SettingsPanel(title="PixelMate v" + str(
-            APP_VERSION) + "\n\nPixel art editor program\nDeveloped by Plyaskin Anton (werton)\nPowered by Python & Kivy",
+            APP_VERSION) + "\n\nPixel art editor program\nDeveloped by Anton Plyaskin (werton)\nPowered by Python & Kivy",
                               settings=self)
         if self.settings_panel.interface is not None:
             self.settings_panel.interface.add_panel(panel, "About", panel.uid)
