@@ -269,9 +269,6 @@ class Paint(StencilView):
         if len(self.touches) > 1:
             return True
 
-    # def double_touch_distance(self):
-    #     return Vector(self.touches[0].pos).distance(self.touches[1].pos)
-
     def touch_responce(self):
         result = False
         if len(self.touches) >= 2:
